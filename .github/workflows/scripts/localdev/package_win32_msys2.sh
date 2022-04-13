@@ -113,5 +113,5 @@ opam option setenv+="DKML_HOST_ABI = \"$M_DKMLTARGETABI\""
 opam option setenv # print
 
 # --> Build installer for Windows
-win32_build_installer_cmd=$(cygpath -aw "$HERE"/../win32_build_installer.cmd)
-VSCMD_SKIP_SENDTELEMETRY=1 MSYSTEM=MINGW64 MSYSTEM_CARCH=x86_64 MSYSTEM_CHOST=x86_64-w64-mingw32 MSYSTEM_PREFIX=/mingw64 "$win32_build_installer_cmd"
+win32_build_compiler_cmd=$(cygpath -aw "$HERE"/../win32_build_compiler.cmd)
+VSCMD_SKIP_SENDTELEMETRY=1 MSYSTEM=MINGW64 MSYSTEM_CARCH=x86_64 MSYSTEM_CHOST=x86_64-w64-mingw32 MSYSTEM_PREFIX=/mingw64 "$win32_build_compiler_cmd"
