@@ -1,0 +1,49 @@
+# Set the default behavior, in case people don't have core.autocrlf set.
+# This is critical for Windows and UNIX interoperability.
+* text=auto
+
+# Explicitly declare text files you want to always be normalized and converted
+# to native line endings on checkout. Should be *none*.
+
+# Declare files that will always have LF line endings on checkout.
+.gitattributes text eol=lf
+.gitmodules text eol=lf
+.ocamlformat text eol=lf
+*.c text eol=lf
+*.cachekey text eol=lf
+*.h text eol=lf
+*.in text eol=lf
+*.install text eol=lf
+*.md text eol=lf
+*.ml text eol=lf
+*.mli text eol=lf
+*.opam text eol=lf
+*.patch text eol=lf
+*.sexp text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+dune text eol=lf
+dune-project text eol=lf
+dune-workspace text eol=lf
+Makefile text eol=lf
+opam text eol=lf
+LICENSE text eol=lf
+
+# Declare files that will always have CRLF line endings on checkout.
+*.sln text eol=crlf
+
+# https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_character_encoding?view=powershell-7.1
+# > Creating PowerShell scripts on a Unix-like platform or using a cross-platform editor on Windows, such as Visual Studio Code,
+# >   results in a file encoded using UTF8NoBOM. These files work fine on PowerShell Core, but may break in Windows PowerShell if
+# >   the file contains non-Ascii characters.
+# > In general, Windows PowerShell uses the Unicode UTF-16LE encoding by default.
+# > Using any Unicode encoding, except UTF7, always creates a BOM.
+#
+# Hint: If a file is causing you problems (ex. `fatal: BOM is required in ... if encoded as UTF-16`) use
+#       "View > Change File Encoding > Save with Encoding > UTF-16LE" in Visual Studio Code to save the file correctly.
+*.ps1 text working-tree-encoding=UTF-16 eol=CRLF
+*.psm1 text working-tree-encoding=UTF-16 eol=CRLF
+
+# Denote all files that are truly binary and should not be modified.
+*.png binary
+*.jpg binary
