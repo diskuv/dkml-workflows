@@ -64,6 +64,8 @@ jobs:
 
     env:
       OPAMROOT: ${{ matrix.opam-root }}
+      DISTNAME: ${{ matrix.dist_name }}
+      EXE_EXT: ${{ matrix.exe_ext }}
 
       # Increase if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root
@@ -273,8 +275,10 @@ jobs:
         run: |
           #!/bin/sh
           set -eufx
-          ls -l $OPAMROOT
-          [ -d "$OPAMROOT/dkml/.opam-switch" ] || PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam switch create dkml --repos diskuv,default --empty
+          PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
+          ls -la $OPAMROOT
+          cat $OPAMROOT/config
+          if ! opam switch list --short | grep '^dkml$'; then opam switch create dkml --repos diskuv,default --empty; fi
 
       # dkml-base-compiler
 
@@ -356,17 +360,15 @@ jobs:
       - name: Bundle Opam (Windows)
         if: ${{ startsWith(matrix.dist_name, 'windows') }}
         shell: msys2 {0}
-        env:
-          DISTNAME: ${{ matrix.dist_name }}
-          EXE_EXT: ${{ matrix.exe_ext }}
         run: |
           #!/bin/sh
           set -eufx
           PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
-          install -d .ci/sd4/dist
-          tree -F $(opam var prefix)
-          tar cvCfz $(opam var prefix) $GITHUB_WORKSPACE/.ci/sd4/dist/$DISTNAME.tar.gz .
-          install $GITHUB_WORKSPACE/.ci/sd4/bs/bin/opam$EXE_EXT $GITHUB_WORKSPACE/.ci/sd4/dist/opam-$DISTNAME${EXE_EXT}
+
+          install -d "$GITHUB_WORKSPACE"/.ci/sd4/dist
+          tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz .
+
+          install -v "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/opam$EXE_EXT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opam${EXE_EXT}
 
       # Upload
 
@@ -374,5 +376,5 @@ jobs:
         with:
           name: setup-dkml-${{ matrix.dist_name }}
           path: |
-            .ci/sd4/dist/${{ matrix.dist_name }}.tar.gz
-            .ci/sd4/dist/opam-${{ matrix.dist_name }}${{ matrix.exe_ext }}
+            .ci/sd4/dist/opamroot.tar.gz
+            .ci/sd4/dist/opam${{ matrix.exe_ext }}
