@@ -77,18 +77,27 @@ jobs:
         #   chosen when the target ABI ends with x86.
         include:
           - os: windows-2019 # 2019 has Visual Studio 2019
-            dist_name: windows
+            dist_name: windows_x86
             exe_ext: .exe
             bootstrap-opam-version: "0.0.0"
             # The 32-bit Opam binary has some problems with
             # `Unix.create_process` giving:
             #   "create_process" failed on sleep: Bad file descriptor
             # So use 64-bit Opam binary?
-            opam-abi: windows_x86_64
+            opam-abi: windows_x86 # _64
             dkml-target-abi: windows_x86
             opam-root: D:/.opam
-            vsstudio-hostarch: x86
+            vsstudio-hostarch: x64
             vsstudio-arch: x86
+          - os: windows-2019 # 2019 has Visual Studio 2019
+            dist_name: windows_x86_64
+            exe_ext: .exe
+            bootstrap-opam-version: "0.0.0"
+            opam-abi: windows_x86_64
+            dkml-target-abi: windows_x86_64
+            opam-root: D:/.opam
+            vsstudio-hostarch: x64
+            vsstudio-arch: x64
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.dist_name }}
 
@@ -97,9 +106,13 @@ jobs:
       DISTNAME: ${{ matrix.dist_name }}
       EXE_EXT: ${{ matrix.exe_ext }}
 
-      # Increase if you get `make inconsistent assumptions over interface Stdlib__format` errors
+      # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root
-      CACHE_PREFIX: ${{ inputs.cache-prefix }}_r2
+      BINARY_CACHE_PREFIX: ${{
+        inputs.cache-prefix }}_r2_${{
+        matrix.dkml-target-abi }}_${{
+        matrix.opam-abi }}_${{
+        matrix.bootstrap-opam-version }}
 
       # When non-empty, instead of building the standard components from the
       # central Opam repository, use the github/gitlab development repositories
@@ -120,6 +133,15 @@ jobs:
       # Use an M_ prefix so don't interfere with any internal DKML use
       M_DKMLOPTIONS: ${{ matrix.dkml-options }}
       M_DKMLTARGETABI: ${{ matrix.dkml-target-abi }}
+
+      # `>-` will flatten the multiple lines into a single line with no trailing EOL.
+      # By design `populate-cache` is not part of the cache key
+      CACHE_KEY_GITHUB_INPUTS: >-
+        INPUT_OCAML=${{ inputs.ocaml }}
+        OCAML_CONFIG=${{ inputs.ocaml-config }}
+        DISKUV_OPAM_REPOSITORY=${{ inputs.diskuv-opam-repository }}
+        ALL_COMPILER=${{ inputs.dkml-compiler }}
+        CONF_DKML_CROSS_TOOLCHAIN=${{ inputs.conf-dkml-cross-toolchain }}
 
     steps:
       # Install utilities
@@ -169,9 +191,9 @@ jobs:
         if: ${{ matrix.bootstrap-opam-version != 'os' }}
         uses: actions/cache@v2
         with:
-          path: bootstrap
+          path: .ci/sd4/bs
           key:
-            ${{ runner.os }}-bootstrap-${{ env.CACHE_PREFIX }}-${{ matrix.bootstrap-opam-version }}
+            ${{ runner.os }}-sd4-bs-${{ env.BINARY_CACHE_PREFIX }}
       - name: Bootstrap Opam from historical release
         if: ${{ matrix.bootstrap-opam-version != 'os' }}
         shell: msys2 {0}
@@ -203,9 +225,7 @@ jobs:
             ${{ matrix.opam-root }}/installer-${{ env.INSTALLERNAME }}
             ${{ matrix.opam-root }}/.ci.root-init
           key:
-            ${{ runner.os }}-sd4-opamroot-${{ env.CACHE_PREFIX }}-${{
-              matrix.bootstrap-opam-version }}-${{ matrix.opam-abi }}-${{
-              env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}-${{ env.CACHE_KEY_GITHUB_INPUTS }}
+            ${{ runner.os }}-sd4-opamroot-${{ env.BINARY_CACHE_PREFIX }}
 
       - name: Initialize Opam root
         env:
@@ -251,17 +271,8 @@ jobs:
             ${{ matrix.opam-root }}/download-cache
             ${{ matrix.opam-root }}/.ci.repo-init
           key:
-            ${{ runner.os }}-sd4-opamrepo-${{ env.CACHE_PREFIX }}
-
-      # The action/checkout steps used for pinning will re-use existing Git objects
-      # because of caching
-      - name: Cache Git checkouts of Opam pins
-        uses: actions/cache@v2
-        with:
-          path: |
-            .ci/sd4/g
-          key:
-            ${{ runner.os }}-sd4-git-${{ env.CACHE_PREFIX }}
+            ${{ runner.os }}-sd4-opamrepo-${{ env.BINARY_CACHE_PREFIX }}-${{
+              env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}-${{ env.CACHE_KEY_GITHUB_INPUTS }}
 
       - name: Setup Opam repositories
         shell: msys2 {0}
@@ -284,7 +295,8 @@ jobs:
             ${{ matrix.opam-root }}/dkml
             ${{ matrix.opam-root }}/config
           key:
-            ${{ runner.os }}-sd4-switch-${{ env.CACHE_PREFIX }}
+            ${{ runner.os }}-sd4-switch-${{ env.BINARY_CACHE_PREFIX }}-${{
+              env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}-${{ env.CACHE_KEY_GITHUB_INPUTS }}
 
       # Create, or recreate, the Opam switch. The Opam switch should not be
       # cached except for the compiler (confer docs for setup-ocaml GitHub
@@ -302,6 +314,15 @@ jobs:
           cat $OPAMROOT/config
           if ! opam switch list --short | grep '^dkml$'; then opam switch create dkml --repos diskuv,default --empty --yes; fi
 
+      # The action/checkout steps used for pinning will re-use existing Git objects
+      # because of caching
+      - name: Cache Git checkouts of Opam pins
+        uses: actions/cache@v2
+        with:
+          path: .ci/sd4/g
+          key:
+            ${{ runner.os }}-sd4-git-${{ inputs.cache-prefix }}
+
       # dkml-base-compiler
 
       - name: Checkout dkml-base-compiler
@@ -309,13 +330,13 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-compiler
-          path: .ci/g/dkml-base-compiler
+          path: .ci/sd4/g/dkml-base-compiler
           ref: ${{ env.DKML_BASE_COMPILER }} # empty is no `ref`, which is default branch
 
       - name: Pin dkml-base-compiler to checkout instead of Opam repository
         if: ${{ env.DKML_BASE_COMPILER != '@repository@' }}
         shell: msys2 {0}
-        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action dkml-base-compiler .ci/g/dkml-base-compiler
+        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action dkml-base-compiler .ci/sd4/g/dkml-base-compiler
 
       # conf-dkml-cross-toolchain
 
@@ -324,13 +345,13 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: diskuv/conf-dkml-cross-toolchain
-          path: .ci/g/conf-dkml-cross-toolchain
+          path: .ci/sd4/g/conf-dkml-cross-toolchain
           ref: ${{ env.CONF_DKML_CROSS_TOOLCHAIN }} # empty is no `ref`, which is default branch
 
       - name: Pin conf-dkml-cross-toolchain to checkout instead of Opam repository
         if: ${{ env.CONF_DKML_CROSS_TOOLCHAIN != '@repository@' }}
         shell: msys2 {0}
-        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action conf-dkml-cross-toolchain .ci/g/conf-dkml-cross-toolchain
+        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action conf-dkml-cross-toolchain .ci/sd4/g/conf-dkml-cross-toolchain
 
       # ocaml
 
@@ -339,13 +360,13 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-compiler
-          path: .ci/g/ocaml
+          path: .ci/sd4/g/ocaml
           ref: ${{ env.INPUT_OCAML }} # empty is no `ref`, which is default branch
 
       - name: Pin ocaml.4.12.1 to checkout instead of Opam repository
         if: ${{ env.INPUT_OCAML != '@repository@' }}
         shell: msys2 {0}
-        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action ocaml.4.12.1 .ci/g/ocaml
+        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action ocaml.4.12.1 .ci/sd4/g/ocaml
 
       # ocaml-config
 
@@ -354,13 +375,13 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-compiler
-          path: .ci/g/ocaml-config
+          path: .ci/sd4/g/ocaml-config
           ref: ${{ env.OCAML_CONFIG }} # empty is no `ref`, which is default branch
 
       - name: Pin ocaml-config.2 to checkout instead of Opam repository
         if: ${{ env.OCAML_CONFIG != '@repository@' }}
         shell: msys2 {0}
-        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action ocaml-config.2 .ci/g/ocaml-config
+        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action ocaml-config.2 .ci/sd4/g/ocaml-config
 
       # dkml-option-32bit
 
@@ -369,13 +390,13 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-compiler
-          path: .ci/g/dkml-option-32bit
+          path: .ci/sd4/g/dkml-option-32bit
           ref: ${{ env.DKML_OPTION_32BIT }} # empty is no `ref`, which is default branch
 
       - name: Pin dkml-option-32bit to checkout instead of Opam repository
         if: ${{ env.DKML_OPTION_32BIT != '@repository@' }}
         shell: msys2 {0}
-        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action dkml-option-32bit .ci/g/dkml-option-32bit
+        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action dkml-option-32bit .ci/sd4/g/dkml-option-32bit
 
       # ocamlfind and ocamlbuild have patches necessary for Windows in diskuv-opam-repository
 
@@ -392,7 +413,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: .ci/sd4/vsenv
-          key: ${{ runner.os }}-sd4-vsenv-${{ env.CACHE_PREFIX }}
+          key: ${{ runner.os }}-sd4-vsenv-${{ inputs.cache-prefix }}
 
       - name: Get Visual Studio environment variables (Windows)
         if: ${{ startsWith(matrix.dist_name, 'windows') }}
@@ -485,7 +506,7 @@ jobs:
           set PATH=%GITHUB_WORKSPACE%\.ci\sd4\bs\bin;%PATH%
 
           REM We must place MSYS2 in front of path so that MSYS2
-          REM tar.exe is used instead of Windows tar.exe. 
+          REM tar.exe is used instead of Windows tar.exe.
           REM But setup-msys2 puts MSYS2 in a temp directory when release=false.
           REM So we use setup-msys2's `msys2 -c` wrapper.
           FOR /F "tokens=* usebackq" %%F IN (`msys2 -c "cygpath -aw /usr/bin"`) DO (
@@ -510,7 +531,8 @@ jobs:
           PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
 
           install -d "$GITHUB_WORKSPACE"/.ci/sd4/dist
-          tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build --exclude ./dkml/.opam-switch/build --exclude ./dkml/.opam-switch/sources .
+          echo Need sources ... tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build --exclude ./dkml/.opam-switch/sources .
+          tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build .
 
           install -v "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/opam$EXE_EXT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opam${EXE_EXT}
 
