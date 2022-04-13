@@ -69,7 +69,7 @@ jobs:
 
       # Increase if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root
-      CACHE_PREFIX: ${{ inputs.cache-prefix }}
+      CACHE_PREFIX: ${{ inputs.cache-prefix }}_r1
 
       # When non-empty, instead of building the standard components from the
       # central Opam repository, use the github/gitlab development repositories
@@ -252,7 +252,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: |
-            ${{ matrix.opam-root }}/.ci/sd4/g
+            .ci/sd4/g
           key:
             ${{ runner.os }}-sd4-git-${{ env.CACHE_PREFIX }}
 
@@ -270,6 +270,21 @@ jobs:
             touch "$OPAMROOT/.ci.repo-init"
           fi
 
+      - name: Cache Git checkouts of Opam compiler switch
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ matrix.opam-root }}/dkml
+          key:
+            ${{ runner.os }}-sd4-switch-${{ env.CACHE_PREFIX }}
+
+      # Create, or recreate, the Opam switch. The Opam switch should not be
+      # cached except for the compiler (confer docs for setup-ocaml GitHub
+      # Action). When we initially create the switch and then GitHub loads the
+      # cache of the Opam root,
+      # the switch will be present in OPAMROOT/config but OPAMROOT/<switch>
+      # will not be present ... recreating the switch to fix the inconsistent
+      # state.
       - name: Create Opam switch
         shell: msys2 {0}
         run: |
@@ -278,7 +293,7 @@ jobs:
           PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
           ls -la $OPAMROOT
           cat $OPAMROOT/config
-          if ! opam switch list --short | grep '^dkml$'; then opam switch create dkml --repos diskuv,default --empty; fi
+          if ! opam switch list --short | grep '^dkml$'; then opam switch create dkml --repos diskuv,default --empty --yes; fi          
 
       # dkml-base-compiler
 
@@ -354,6 +369,11 @@ jobs:
         if: ${{ env.DKML_OPTION_32BIT != '@repository@' }}
         shell: msys2 {0}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action dkml-option-32bit .ci/g/dkml-option-32bit
+
+      # Install compiler
+      - name: Install OCaml compiler
+        shell: msys2 {0}
+        run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam upgrade dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain --yes
 
       # Bundle
 
