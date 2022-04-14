@@ -522,7 +522,7 @@ jobs:
 
       # Bundle
 
-      - name: Bundle Opam (Windows)
+      - name: Bundle Opam and Sources (Windows)
         if: ${{ startsWith(matrix.dist_name, 'windows') }}
         shell: msys2 {0}
         run: |
@@ -531,10 +531,12 @@ jobs:
           PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
 
           install -d "$GITHUB_WORKSPACE"/.ci/sd4/dist
-          echo Need sources ... tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build --exclude ./dkml/.opam-switch/sources .
-          tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build .
+
+          tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build --exclude ./dkml/.opam-switch/sources .
 
           install -v "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/opam$EXE_EXT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opam${EXE_EXT}
+
+          tar cvCfz "$GITHUB_WORKSPACE"/.ci/sd4/g "$GITHUB_WORKSPACE"/.ci/sd4/dist/sources.tar.gz .
 
       # Upload
 
@@ -544,3 +546,4 @@ jobs:
           path: |
             .ci/sd4/dist/opamroot.tar.gz
             .ci/sd4/dist/opam${{ matrix.exe_ext }}
+            .ci/sd4/dist/sources.tar.gz
