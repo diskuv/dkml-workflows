@@ -538,6 +538,8 @@ jobs:
 
           tar cvCfz "$GITHUB_WORKSPACE"/.ci/sd4/g "$GITHUB_WORKSPACE"/.ci/sd4/dist/sources.tar.gz .
 
+          install -v "$GITHUB_WORKSPACE"/.ci/sd4/vsenv "$GITHUB_WORKSPACE"/.ci/sd4/dist/vsenv
+
       # Upload
 
       - uses: actions/upload-artifact@v3
@@ -547,3 +549,4 @@ jobs:
             .ci/sd4/dist/opamroot.tar.gz
             .ci/sd4/dist/opam${{ matrix.exe_ext }}
             .ci/sd4/dist/sources.tar.gz
+            .ci/sd4/dist/vsenv
