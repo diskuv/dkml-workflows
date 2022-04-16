@@ -109,7 +109,7 @@ jobs:
       # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root
       BINARY_CACHE_PREFIX: ${{
-        inputs.cache-prefix }}_r2_${{
+        inputs.cache-prefix }}_r3_${{
         matrix.dkml-target-abi }}_${{
         matrix.opam-abi }}_${{
         matrix.bootstrap-opam-version }}
@@ -532,7 +532,7 @@ jobs:
 
           install -d "$GITHUB_WORKSPACE"/.ci/sd4/dist
 
-          tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build --exclude ./dkml/.opam-switch/sources .
+          tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build .
 
           install -v "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/opam$EXE_EXT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opam${EXE_EXT}
 
