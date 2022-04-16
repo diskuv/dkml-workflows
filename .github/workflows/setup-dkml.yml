@@ -172,6 +172,12 @@ jobs:
             unzip
             git
 
+      - name: Uninstall MSYS2 conflicting executables (Windows)
+        if: ${{ startsWith(matrix.dist_name, 'windows') }}
+        shell: msys2 {0}
+        # link.exe interferes with MSVC's link.exe
+        run: rm -vf /usr/bin/link.exe
+
       - name: Checkout dkml-runtime-distribution (Windows)
         if: ${{ startsWith(matrix.dist_name, 'windows') }}
         uses: actions/checkout@v2
@@ -179,12 +185,6 @@ jobs:
           repository: diskuv/dkml-runtime-distribution
           path: .ci/sd4/drd
           ref: 1bf73a207e054bd60b620c863a88d7c34a0efac6
-
-      - name: Uninstall MSYS2 conflicting executables (Windows)
-        if: ${{ startsWith(matrix.dist_name, 'windows') }}
-        shell: msys2 {0}
-        # link.exe interferes with MSVC's link.exe
-        run: rm -vf /usr/bin/link.exe
 
       #   Bootstrap from historical release
       - name: Cache Opam bootstrap
@@ -532,7 +532,7 @@ jobs:
 
           install -d "$GITHUB_WORKSPACE"/.ci/sd4/dist
 
-          tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build .
+          tar cvCfz $OPAMROOT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build --exclude ./log .
 
           install -v "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/opam$EXE_EXT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opam${EXE_EXT}
 
