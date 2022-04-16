@@ -109,7 +109,7 @@ jobs:
       # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root
       BINARY_CACHE_PREFIX: ${{
-        inputs.cache-prefix }}_r3_${{
+        inputs.cache-prefix }}_r4_${{
         matrix.dkml-target-abi }}_${{
         matrix.opam-abi }}_${{
         matrix.bootstrap-opam-version }}
@@ -413,7 +413,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: .ci/sd4/vsenv
-          key: ${{ runner.os }}-sd4-vsenv-${{ inputs.cache-prefix }}
+          key: ${{ runner.os }}-sd4-vsenv_1-${{ inputs.cache-prefix }}
 
       - name: Get Visual Studio environment variables (Windows)
         if: ${{ startsWith(matrix.dist_name, 'windows') }}
@@ -434,8 +434,12 @@ jobs:
             echo "VS_WINSDKVER=$($VisualStudioProps.WinSdkVer)" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
             echo "VS_MSVSPREFERENCE=$($VisualStudioProps.MsvsPreference)" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
             echo "VS_CMAKEGENERATOR=$($VisualStudioProps.CMakeGenerator)" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+            # The following looks redundant, but caller workflows also need these env variables!
+            echo "VS_ARCH=${env:VS_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+            echo "VS_HOST_ARCH=${env:VS_HOST_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           }
 
+          Get-Content ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           Get-Content ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv >> $env:GITHUB_ENV
 
       - name: Use Visual Studio in dkml-* Opam packages (Windows)
