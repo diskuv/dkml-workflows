@@ -413,7 +413,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: .ci/sd4/vsenv
-          key: ${{ runner.os }}-sd4-vsenv_1-${{ inputs.cache-prefix }}
+          key: ${{ runner.os }}-sd4-vsenv_1-${{ inputs.cache-prefix }}-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}
 
       - name: Get Visual Studio environment variables (Windows)
         if: ${{ startsWith(matrix.dist_name, 'windows') }}
