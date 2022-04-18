@@ -234,7 +234,7 @@ jobs:
             ${{ matrix.opam-root }}/installer-${{ env.INSTALLERNAME }}
             ${{ matrix.opam-root }}/.ci.root-init
           key:
-            ${{ runner.os }}-sd4-opamroot-${{ env.BINARY_CACHE_PREFIX }}
+            ${{ matrix.dist_name }}-sd4-opamroot-${{ env.BINARY_CACHE_PREFIX }}
 
       - name: Initialize Opam root
         env:
@@ -280,7 +280,7 @@ jobs:
             ${{ matrix.opam-root }}/download-cache
             ${{ matrix.opam-root }}/.ci.repo-init
           key:
-            ${{ runner.os }}-sd4-opamrepo-${{ env.BINARY_CACHE_PREFIX }}-${{
+            ${{ matrix.dist_name }}-sd4-opamrepo-${{ env.BINARY_CACHE_PREFIX }}-${{
               env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}-${{ env.CACHE_KEY_GITHUB_INPUTS }}
 
       - name: Setup Opam repositories
@@ -304,7 +304,7 @@ jobs:
             ${{ matrix.opam-root }}/dkml
             ${{ matrix.opam-root }}/config
           key:
-            ${{ runner.os }}-sd4-switch-${{ env.BINARY_CACHE_PREFIX }}-${{
+            ${{ matrix.dist_name }}-sd4-switch-${{ env.BINARY_CACHE_PREFIX }}-${{
               env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}-${{ env.CACHE_KEY_GITHUB_INPUTS }}
 
       # Create, or recreate, the Opam switch. The Opam switch should not be
@@ -422,7 +422,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: .ci/sd4/vsenv
-          key: ${{ runner.os }}-sd4-vsenv_1-${{ inputs.cache-prefix }}-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}
+          key: ${{ matrix.dist_name }}-sd4-vsenv_1-${{ inputs.cache-prefix }}-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}
 
       - name: Get Visual Studio environment variables (Windows)
         if: ${{ startsWith(matrix.dist_name, 'windows') }}
