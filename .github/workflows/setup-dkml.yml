@@ -165,7 +165,7 @@ jobs:
       #   unzip: Needed for Opam
       #   git: Needed for Opam
       - name: Install MSYS2
-        if: ${{ startsWith(matrix.dist_name, 'windows') }}
+        if: startsWith(matrix.dist_name, 'windows')
         uses: msys2/setup-msys2@v2
         with:
           msystem: MSYS
@@ -182,13 +182,13 @@ jobs:
             git
 
       - name: Uninstall MSYS2 conflicting executables (Windows)
-        if: ${{ startsWith(matrix.dist_name, 'windows') }}
+        if: startsWith(matrix.dist_name, 'windows')
         shell: msys2 {0}
         # link.exe interferes with MSVC's link.exe
         run: rm -vf /usr/bin/link.exe
 
       - name: Checkout dkml-runtime-distribution (Windows)
-        if: ${{ startsWith(matrix.dist_name, 'windows') }}
+        if: startsWith(matrix.dist_name, 'windows')
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-runtime-distribution
@@ -197,14 +197,14 @@ jobs:
 
       #   Bootstrap from historical release
       - name: Cache Opam bootstrap
-        if: ${{ matrix.bootstrap-opam-version != 'os' }}
+        if: matrix.bootstrap-opam-version != 'os'
         uses: actions/cache@v2
         with:
           path: .ci/sd4/bs
           key:
             ${{ runner.os }}-sd4-bs-${{ env.BINARY_CACHE_PREFIX }}
       - name: Bootstrap Opam from historical release
-        if: ${{ matrix.bootstrap-opam-version != 'os' }}
+        if: matrix.bootstrap-opam-version != 'os'
         shell: msys2 {0}
         env:
           VER: ${{ matrix.bootstrap-opam-version }}
@@ -335,7 +335,7 @@ jobs:
       # dkml-base-compiler
 
       - name: Checkout dkml-base-compiler
-        if: ${{ env.DKML_BASE_COMPILER != '@repository@' }}
+        if: env.DKML_BASE_COMPILER != '@repository@'
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-compiler
@@ -343,14 +343,14 @@ jobs:
           ref: ${{ env.DKML_BASE_COMPILER }} # empty is no `ref`, which is default branch
 
       - name: Pin dkml-base-compiler to checkout instead of Opam repository
-        if: ${{ env.DKML_BASE_COMPILER != '@repository@' }}
+        if: env.DKML_BASE_COMPILER != '@repository@'
         shell: msys2 {0}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action dkml-base-compiler .ci/sd4/g/dkml-base-compiler
 
       # conf-dkml-cross-toolchain
 
       - name: Checkout conf-dkml-cross-toolchain
-        if: ${{ env.CONF_DKML_CROSS_TOOLCHAIN != '@repository@' }}
+        if: env.CONF_DKML_CROSS_TOOLCHAIN != '@repository@'
         uses: actions/checkout@v2
         with:
           repository: diskuv/conf-dkml-cross-toolchain
@@ -358,14 +358,14 @@ jobs:
           ref: ${{ env.CONF_DKML_CROSS_TOOLCHAIN }} # empty is no `ref`, which is default branch
 
       - name: Pin conf-dkml-cross-toolchain to checkout instead of Opam repository
-        if: ${{ env.CONF_DKML_CROSS_TOOLCHAIN != '@repository@' }}
+        if: env.CONF_DKML_CROSS_TOOLCHAIN != '@repository@'
         shell: msys2 {0}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action conf-dkml-cross-toolchain .ci/sd4/g/conf-dkml-cross-toolchain
 
       # ocaml
 
       - name: Checkout ocaml
-        if: ${{ env.INPUT_OCAML != '@repository@' }}
+        if: env.INPUT_OCAML != '@repository@'
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-compiler
@@ -373,14 +373,14 @@ jobs:
           ref: ${{ env.INPUT_OCAML }} # empty is no `ref`, which is default branch
 
       - name: Pin ocaml.4.12.1 to checkout instead of Opam repository
-        if: ${{ env.INPUT_OCAML != '@repository@' }}
+        if: env.INPUT_OCAML != '@repository@'
         shell: msys2 {0}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action ocaml.4.12.1 .ci/sd4/g/ocaml
 
       # ocaml-config
 
       - name: Checkout ocaml-config
-        if: ${{ env.OCAML_CONFIG != '@repository@' }}
+        if: env.OCAML_CONFIG != '@repository@'
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-compiler
@@ -388,14 +388,14 @@ jobs:
           ref: ${{ env.OCAML_CONFIG }} # empty is no `ref`, which is default branch
 
       - name: Pin ocaml-config.2 to checkout instead of Opam repository
-        if: ${{ env.OCAML_CONFIG != '@repository@' }}
+        if: env.OCAML_CONFIG != '@repository@'
         shell: msys2 {0}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action ocaml-config.2 .ci/sd4/g/ocaml-config
 
       # dkml-option-32bit
 
       - name: Checkout dkml-option-32bit
-        if: ${{ env.DKML_OPTION_32BIT != '@repository@' }}
+        if: env.DKML_OPTION_32BIT != '@repository@'
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-compiler
@@ -403,7 +403,7 @@ jobs:
           ref: ${{ env.DKML_OPTION_32BIT }} # empty is no `ref`, which is default branch
 
       - name: Pin dkml-option-32bit to checkout instead of Opam repository
-        if: ${{ env.DKML_OPTION_32BIT != '@repository@' }}
+        if: env.DKML_OPTION_32BIT != '@repository@'
         shell: msys2 {0}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action dkml-option-32bit .ci/sd4/g/dkml-option-32bit
 
@@ -425,7 +425,7 @@ jobs:
           key: ${{ matrix.dist_name }}-sd4-vsenv_1-${{ inputs.cache-prefix }}-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}
 
       - name: Get Visual Studio environment variables (Windows)
-        if: ${{ startsWith(matrix.dist_name, 'windows') }}
+        if: startsWith(matrix.dist_name, 'windows')
         shell: pwsh
         run: |
           if (!(Test-Path -Path ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv)) {
@@ -452,7 +452,7 @@ jobs:
           Get-Content ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv >> $env:GITHUB_ENV
 
       - name: Use Visual Studio in dkml-* Opam packages (Windows)
-        if: ${{ startsWith(matrix.dist_name, 'windows') }}
+        if: startsWith(matrix.dist_name, 'windows')
         shell: msys2 {0}
         run: |
           PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
@@ -536,7 +536,7 @@ jobs:
       # Bundle
 
       - name: Bundle Opam and Sources (Windows)
-        if: ${{ startsWith(matrix.dist_name, 'windows') }}
+        if: startsWith(matrix.dist_name, 'windows')
         shell: msys2 {0}
         run: |
           #!/bin/sh
