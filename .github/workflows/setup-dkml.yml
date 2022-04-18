@@ -76,6 +76,11 @@ jobs:
         #   You don't need to include `dkml-option-32bit` because it is auto
         #   chosen when the target ABI ends with x86.
         include:
+          # ------------
+          # windows-2019
+          #   https://github.com/actions/virtual-environments/blob/main/images/win/Windows2019-Readme.md
+          # ------------
+
           - os: windows-2019 # 2019 has Visual Studio 2019
             dist_name: windows_x86
             exe_ext: .exe
@@ -98,6 +103,12 @@ jobs:
             opam-root: D:/.opam
             vsstudio-hostarch: x64
             vsstudio-arch: x64
+
+          # ------------
+          # windows-2022
+          #   https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
+          # ------------
+
           - os: windows-2022
             dist_name: windows22_x86_64
             exe_ext: .exe
@@ -107,6 +118,12 @@ jobs:
             opam-root: D:/.opam
             vsstudio-hostarch: x64
             vsstudio-arch: x64
+            vsstudio-dir: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise'
+            vsstudio-vcvarsver: '14.29'
+            vsstudio-winsdkver: '10.0.20348.0'
+            vsstudio-msvspreference: 'VS16.11'
+            vsstudio-cmakegenerator: 'Visual Studio 17 2022'
+
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.dist_name }}
 
@@ -424,8 +441,25 @@ jobs:
           path: .ci/sd4/vsenv
           key: ${{ matrix.dist_name }}-sd4-vsenv_1-${{ inputs.cache-prefix }}-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}
 
-      - name: Get Visual Studio environment variables (Windows)
+      - name: Diagnose Visual Studio environment variables (Windows). Would Microsoft.VisualStudio.Component.VC.v141.x86.x64.Spectre,version=16.5.29515.121 work instead of 16.11?
         if: startsWith(matrix.dist_name, 'windows')
+        shell: pwsh
+        run: |
+          if (Test-Path -Path "C:\Program Files (x86)\Windows Kits\10\include") {
+            dir "C:\Program Files (x86)\Windows Kits\10\include"
+          }
+          if (Test-Path -Path "C:\Program Files (x86)\Windows Kits\10\Extension SDKs\WindowsDesktop") {
+            dir "C:\Program Files (x86)\Windows Kits\10\Extension SDKs\WindowsDesktop"
+          }
+
+          $env:PSModulePath += "$([System.IO.Path]::PathSeparator).ci\sd4\drd\src\windows"
+          Import-Module Machine
+
+          $allinstances = Get-VSSetupInstance
+          $allinstances | ConvertTo-Json -Depth 5
+
+      - name: Query Visual Studio environment variables (Windows)
+        if: startsWith(matrix.dist_name, 'windows') && matrix.vsstudio-dir == ''
         shell: pwsh
         run: |
           if (!(Test-Path -Path ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv)) {
@@ -448,6 +482,23 @@ jobs:
             echo "VS_HOST_ARCH=${env:VS_HOST_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           }
 
+      - name: Save Visual Studio environment variables (Windows)
+        if: startsWith(matrix.dist_name, 'windows') && matrix.vsstudio-dir != ''
+        shell: pwsh
+        run: |
+          echo "VS_DIR=${{ matrix.vsstudio-dir }}" > ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+          echo "VS_VCVARSVER=${{ matrix.vsstudio-vcvarsver }}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+          echo "VS_WINSDKVER=${{ matrix.vsstudio-winsdkver }}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+          echo "VS_MSVSPREFERENCE=${{ matrix.vsstudio-msvspreference }}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+          echo "VS_CMAKEGENERATOR=${{ matrix.vsstudio-cmakegenerator }}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+          # The following looks redundant, but caller workflows also need these env variables!
+          echo "VS_ARCH=${env:VS_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+          echo "VS_HOST_ARCH=${env:VS_HOST_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+
+      - name: Export Visual Studio environment variables (Windows)
+        if: startsWith(matrix.dist_name, 'windows')
+        shell: pwsh
+        run: |
           Get-Content ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           Get-Content ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv >> $env:GITHUB_ENV
 
