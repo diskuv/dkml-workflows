@@ -109,20 +109,22 @@ jobs:
           #   https://github.com/actions/virtual-environments/blob/main/images/win/Windows2022-Readme.md
           # ------------
 
-          - os: windows-2022
-            dist_name: windows22_x86_64
-            exe_ext: .exe
-            bootstrap-opam-version: "0.0.0"
-            opam-abi: windows_x86_64
-            dkml-target-abi: windows_x86_64
-            opam-root: D:/.opam
-            vsstudio-hostarch: x64
-            vsstudio-arch: x64
-            vsstudio-dir: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise'
-            vsstudio-vcvarsver: '14.29'
-            vsstudio-winsdkver: '10.0.20348.0'
-            vsstudio-msvspreference: 'VS16.11'
-            vsstudio-cmakegenerator: 'Visual Studio 17 2022'
+          # Disabled because haven't done opam log dumps on failure for
+          # `opam upgrade`. See https://github.com/diskuv/dkml-component-ocamlcompiler/runs/6059642542?check_suite_focus=true
+          # - os: windows-2022
+          #   dist_name: windows22_x86_64
+          #   exe_ext: .exe
+          #   bootstrap-opam-version: "0.0.0"
+          #   opam-abi: windows_x86_64
+          #   dkml-target-abi: windows_x86_64
+          #   opam-root: D:/.opam
+          #   vsstudio-hostarch: x64
+          #   vsstudio-arch: x64
+          #   vsstudio-dir: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise'
+          #   vsstudio-vcvarsver: '14.29'
+          #   vsstudio-winsdkver: '10.0.20348.0'
+          #   vsstudio-msvspreference: 'VS16.11'
+          #   vsstudio-cmakegenerator: 'Visual Studio 17 2022'
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.dist_name }}
