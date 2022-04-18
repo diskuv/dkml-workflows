@@ -98,6 +98,15 @@ jobs:
             opam-root: D:/.opam
             vsstudio-hostarch: x64
             vsstudio-arch: x64
+          - os: windows-2022
+            dist_name: windows22_x86_64
+            exe_ext: .exe
+            bootstrap-opam-version: "0.0.0"
+            opam-abi: windows_x86_64
+            dkml-target-abi: windows_x86_64
+            opam-root: D:/.opam
+            vsstudio-hostarch: x64
+            vsstudio-arch: x64
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.dist_name }}
 
