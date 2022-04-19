@@ -624,11 +624,23 @@ jobs:
               ;;
           esac
 
+      - name: Capture Opam environment (Windows)
+        if: startsWith(matrix.dkml-host-abi, 'windows')
+        run: |
+          PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
+
           # convert to DOS 'SET varname=varvalue' format if not already
           opam env > "$GITHUB_WORKSPACE"/.ci/sd4/opamenv
           if grep -q '; export' "$GITHUB_WORKSPACE"/.ci/sd4/opamenv; then
             opam env | grep -v '^PATH=' | sed "s#; export.*##; s#'##g; s#^#SET #; s#\\\\\\\\#\\\\#g" > "$GITHUB_WORKSPACE"/.ci/sd4/opamenv
           fi
+          cat "$GITHUB_WORKSPACE"/.ci/sd4/opamenv
+
+      - name: Capture Opam environment (non-Windows)
+        if: "!startsWith(matrix.dkml-host-abi, 'windows')"
+        run: |
+          PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
+          opam env > "$GITHUB_WORKSPACE"/.ci/sd4/opamenv
           cat "$GITHUB_WORKSPACE"/.ci/sd4/opamenv
 
       # Setup OCaml compiler
