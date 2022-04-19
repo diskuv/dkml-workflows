@@ -699,33 +699,37 @@ jobs:
       - name: Install OCaml compiler (non-Windows)
         if: "!startsWith(matrix.dkml-host-abi, 'windows')"
         run: |
-          # Place Opam in PATH.
+          # Place Opam, if not bootstrapped by a package manager, at start of PATH
           export PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
 
           opam upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain $M_DKMLOPTIONS $M_DKMLOPTION_32BIT
 
       # Bundle
 
-      - name: Bundle Opam and Sources
+      - name: Distribute source code, Opam executable, Opam root
         run: |
           #!/bin/sh
           set -eufx
+
+          # Place Opam, if not bootstrapped by a package manager, at start of PATH
+          export PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
 
           install -d "$GITHUB_WORKSPACE"/.ci/sd4/dist
 
           tar cvCfz $OPAMROOT .ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build --exclude ./log .
 
-          install -v "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/opam$EXE_EXT "$GITHUB_WORKSPACE"/.ci/sd4/dist/opam${EXE_EXT}
-
           tar cvCfz .ci/sd4/g .ci/sd4/dist/sources.tar.gz .
 
           install -v "$GITHUB_WORKSPACE"/.ci/sd4/opamenv "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamenv
 
-      - name: Bundle Opam and Sources (Windows)
+          # Distribute whichever opam.exe we have been using
+          install -v $(command -v opam) "$GITHUB_WORKSPACE"/.ci/sd4/dist/opam${EXE_EXT}
+
+      - name: Distribute Visual Studio environment (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
         run: install -v "$GITHUB_WORKSPACE"/.ci/sd4/vsenv   "$GITHUB_WORKSPACE"/.ci/sd4/dist/vsenv
 
-      - name: Bundle Opam and Sources (Windows fdopen)
+      - name: Distribute Opam DLLs (Windows fdopen)
         if: inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')
         run: cp -rpv "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/Opam.Runtime.amd64 "$GITHUB_WORKSPACE"/.ci/sd4/dist/
 
