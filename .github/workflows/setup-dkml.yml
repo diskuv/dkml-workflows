@@ -87,8 +87,8 @@ jobs:
           # ------------
 
           - os: windows-2019 # 2019 has Visual Studio 2019
-            dist_name: windows_x86
-            shell: msys2 {0}
+            host_target_abis: win32-windows_x86
+            default_shell: msys2 {0}
             exe_ext: .exe
             bootstrap-opam-version: "0.0.0"
             # The 32-bit Opam binary has some problems with
@@ -101,8 +101,8 @@ jobs:
             vsstudio-hostarch: x64
             vsstudio-arch: x86
           - os: windows-2019 # 2019 has Visual Studio 2019
-            dist_name: windows_x86_64
-            shell: msys2 {0}
+            host_target_abis: win32-windows_x86_64
+            default_shell: msys2 {0}
             exe_ext: .exe
             bootstrap-opam-version: "0.0.0"
             opam-abi: windows_x86_64
@@ -113,8 +113,8 @@ jobs:
           # Unnecessary to use VS 14.16, but it serves as a good template for
           # other (future) VS versions.
           # - os: windows-2019 # 2019 has Visual Studio 2019
-          #   dist_name: windows_1416_64 # VS2017 compiler available to VS2019
-          #   shell: msys2 {0}
+          #   host_target_abis: win32_1416-windows_64 # VS2017 compiler available to VS2019
+          #   default_shell: msys2 {0}
           #   exe_ext: .exe
           #   bootstrap-opam-version: "0.0.0"
           #   opam-abi: windows_x86_64
@@ -136,8 +136,8 @@ jobs:
           # Disabled because haven't done opam log dumps on failure for
           # `opam upgrade`. See https://github.com/diskuv/dkml-component-ocamlcompiler/runs/6059642542?check_suite_focus=true
           # - os: windows-2022
-          #   dist_name: windows22_x86_64
-          #   shell: msys2 {0}
+          #   host_target_abis: win32_2022-windows_x86_64
+          #   default_shell: msys2 {0}
           #   exe_ext: .exe
           #   bootstrap-opam-version: "0.0.0"
           #   opam-abi: windows_x86_64
@@ -152,18 +152,21 @@ jobs:
           #   vsstudio-cmakegenerator: 'Visual Studio 17 2022'
 
           - os: macos-latest
-            dist_name: darwin_x86_64
-            shell: sh
+            host_target_abis: macos-darwin_all
+            default_shell: sh
             bootstrap-opam-version: "os"
             dkml-host-abi: darwin_x86_64
             opam-root: /Users/runner/.opam
 
     runs-on: ${{ matrix.os }}
-    name: ${{ matrix.dist_name }}
+    name: ${{ matrix.host_target_abis }}
+
+    defaults:
+      run:
+        shell: ${{ matrix.default_shell }}
 
     env:
       OPAMROOT: ${{ matrix.opam-root }}
-      DISTNAME: ${{ matrix.dist_name }}
       EXE_EXT: ${{ matrix.exe_ext }}
 
       # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
@@ -216,7 +219,7 @@ jobs:
       #   unzip: Needed for Opam
       #   git: Needed for Opam
       - name: Install MSYS2
-        if: startsWith(matrix.dist_name, 'windows')
+        if: startsWith(matrix.dkml-host-abi, 'windows')
         uses: msys2/setup-msys2@v2
         with:
           msystem: MSYS
@@ -236,13 +239,13 @@ jobs:
             tar
 
       - name: Uninstall MSYS2 conflicting executables (Windows)
-        if: startsWith(matrix.dist_name, 'windows')
+        if: startsWith(matrix.dkml-host-abi, 'windows')
         shell: msys2 {0}
         # link.exe interferes with MSVC's link.exe
         run: rm -vf /usr/bin/link.exe
 
       - name: Checkout dkml-runtime-distribution (Windows)
-        if: startsWith(matrix.dist_name, 'windows')
+        if: startsWith(matrix.dkml-host-abi, 'windows')
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-runtime-distribution
@@ -258,7 +261,7 @@ jobs:
           key:
             ${{ inputs.cache-prefix }}_${{ runner.os }}-sd4-bs-${{ env.OPAM_BINARY_CACHE_KEY }}
       - name: Bootstrap Opam from fdopen (Windows)
-        if: inputs.use-fdopen-opam && startsWith(matrix.dist_name, 'windows')
+        if: inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')
         shell: msys2 {0}
         run: |
           #!/bin/sh
@@ -278,8 +281,7 @@ jobs:
           ldd "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/opam.exe
           ldd "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/opam-installer.exe
       - name: Bootstrap Opam from historical release (non-Windows; Windows non-fdopen)
-        if: "!(inputs.use-fdopen-opam && startsWith(matrix.dist_name, 'windows')) && matrix.bootstrap-opam-version != 'os'"
-        shell: ${{ matrix.shell }}
+        if: "!(inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')) && matrix.bootstrap-opam-version != 'os'"
         env:
           VER: ${{ matrix.bootstrap-opam-version }}
           ABI: ${{ matrix.opam-abi }}
@@ -300,12 +302,12 @@ jobs:
 
       #   Bootstrap from package manager
       - name: Bootstrap Opam from package manager (macOS)
-        if: startsWith(matrix.dist_name, 'darwin') && matrix.bootstrap-opam-version == 'os'
+        if: startsWith(matrix.dkml-host-abi, 'darwin') && matrix.bootstrap-opam-version == 'os'
         run: brew install gpatch && brew install opam
 
       # Build OCaml
 
-      - name: Cache Opam root by distribution
+      - name: Cache Opam root by (host,target)
         uses: actions/cache@v2
         with:
           path: |
@@ -313,12 +315,11 @@ jobs:
             ${{ matrix.opam-root }}/installer-${{ env.INSTALLERNAME }}
             ${{ matrix.opam-root }}/.ci.root-init
           key:
-            ${{ inputs.cache-prefix }}_${{ matrix.dist_name }}-sd4-opamroot-${{ env.OPAM_BINARY_CACHE_KEY }}
+            ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-opamroot-${{ env.OPAM_BINARY_CACHE_KEY }}
 
       - name: Initialize Opam root
         env:
-          ISWINDOWS: ${{ startsWith(matrix.dist_name, 'windows') }}
-        shell: ${{ matrix.shell }}
+          ISWINDOWS: ${{ startsWith(matrix.dkml-host-abi, 'windows') }}
         # Complicated Opam sequence is because:
         # 1. Opam's default curl does not work on Windows,
         #    and `opam init` does not provide a way to change it (TODO: need
@@ -354,7 +355,7 @@ jobs:
           fi
           opam var --global || true
 
-      - name: Cache Opam downloads and repositories by distribution
+      - name: Cache Opam downloads and repositories by (host,target)
         uses: actions/cache@v2
         with:
           path: |
@@ -362,15 +363,13 @@ jobs:
             ${{ matrix.opam-root }}/download-cache
             ${{ matrix.opam-root }}/.ci.repo-init
           key:
-            ${{ inputs.cache-prefix }}_${{ matrix.dist_name }}-sd4-opamrepo-${{
+            ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-opamrepo-${{
               env.OPAM_BINARY_CACHE_KEY }}-${{
-              inputs.diskuv-opam-repository }- ${{
+              inputs.diskuv-opam-repository }}-${{
               env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}-${{
               env.CACHE_KEY_GITHUB_INPUTS }}
 
       - name: Setup Opam repositories
-        if: startsWith(matrix.dist_name, 'windows')
-        shell: ${{ matrix.shell }}
         run: |
           #!/bin/sh
           set -eufx
@@ -386,16 +385,16 @@ jobs:
             touch "$OPAMROOT/.ci.repo-init"
           fi
 
-      - name: Cache Opam compiler switch by distribution
+      - name: Cache Opam compiler switch by (host,target)
         uses: actions/cache@v2
         with:
           path: |
             ${{ matrix.opam-root }}/dkml
             ${{ matrix.opam-root }}/config
           key:
-            ${{ inputs.cache-prefix }}_${{ matrix.dist_name }}-sd4-switch-${{
+            ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-switch-${{
               env.OPAM_BINARY_CACHE_KEY }}-${{
-              inputs.diskuv-opam-repository }- ${{
+              inputs.diskuv-opam-repository }}-${{
               env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}-${{
               env.CACHE_KEY_GITHUB_INPUTS }}
 
@@ -407,7 +406,6 @@ jobs:
       # will not be present ... recreating the switch to fix the inconsistent
       # state.
       - name: Create Opam switch (TODO - missing fdopen repository) (TODO - missing 1000+ dkml pins)
-        shell: ${{ matrix.shell }}
         run: |
           #!/bin/sh
           set -eufx
@@ -436,7 +434,6 @@ jobs:
 
       - name: Pin dkml-base-compiler to checkout instead of Opam repository
         if: env.DKML_BASE_COMPILER != '@repository@'
-        shell: ${{ matrix.shell }}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action dkml-base-compiler .ci/sd4/g/dkml-base-compiler
 
       # conf-dkml-cross-toolchain
@@ -451,7 +448,6 @@ jobs:
 
       - name: Pin conf-dkml-cross-toolchain to checkout instead of Opam repository
         if: env.CONF_DKML_CROSS_TOOLCHAIN != '@repository@'
-        shell: ${{ matrix.shell }}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action conf-dkml-cross-toolchain .ci/sd4/g/conf-dkml-cross-toolchain
 
       # ocaml
@@ -466,7 +462,6 @@ jobs:
 
       - name: Pin ocaml.4.12.1 to checkout instead of Opam repository
         if: env.INPUT_OCAML != '@repository@'
-        shell: ${{ matrix.shell }}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action ocaml.4.12.1 .ci/sd4/g/ocaml
 
       # ocaml-config
@@ -481,7 +476,6 @@ jobs:
 
       - name: Pin ocaml-config.2 to checkout instead of Opam repository
         if: env.OCAML_CONFIG != '@repository@'
-        shell: ${{ matrix.shell }}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action ocaml-config.2 .ci/sd4/g/ocaml-config
 
       # dkml-option-32bit
@@ -496,13 +490,11 @@ jobs:
 
       - name: Pin dkml-option-32bit to checkout instead of Opam repository
         if: env.DKML_OPTION_32BIT != '@repository@'
-        shell: ${{ matrix.shell }}
         run: PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH" opam pin add --yes --no-action dkml-option-32bit .ci/sd4/g/dkml-option-32bit
 
       # ocamlfind and ocamlbuild have patches necessary for Windows in diskuv-opam-repository
 
       - name: Pin ocamlfind ${{ env.PIN_OCAMLFIND }}, ocamlbuild ${{ env.PIN_OCAMLBUILD }}
-        shell: ${{ matrix.shell }}
         run: |
           PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
           opam pin add --yes --no-action -k version ocamlfind ${{ env.PIN_OCAMLFIND }}
@@ -510,14 +502,14 @@ jobs:
 
       # Setup C compiler
 
-      - name: Cache Visual Studio environment variables by distribution
+      - name: Cache Visual Studio environment variables by (host,target)
         uses: actions/cache@v2
         with:
           path: .ci/sd4/vsenv
-          key: ${{ inputs.cache-prefix }}_${{ matrix.dist_name }}-sd4-vsenv_1-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}
+          key: ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-vsenv_1-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}
 
       - name: Diagnose Visual Studio environment variables (Windows)
-        if: startsWith(matrix.dist_name, 'windows')
+        if: startsWith(matrix.dkml-host-abi, 'windows')
         shell: pwsh
         run: |
           if (Test-Path -Path "C:\Program Files (x86)\Windows Kits\10\include") {
@@ -534,7 +526,7 @@ jobs:
           $allinstances | ConvertTo-Json -Depth 5
 
       - name: Query Visual Studio environment variables (Windows)
-        if: startsWith(matrix.dist_name, 'windows') && matrix.vsstudio-dir == ''
+        if: startsWith(matrix.dkml-host-abi, 'windows') && matrix.vsstudio-dir == ''
         shell: pwsh
         run: |
           if (!(Test-Path -Path ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv)) {
@@ -558,7 +550,7 @@ jobs:
           }
 
       - name: Save Visual Studio environment variables (Windows)
-        if: startsWith(matrix.dist_name, 'windows') && matrix.vsstudio-dir != ''
+        if: startsWith(matrix.dkml-host-abi, 'windows') && matrix.vsstudio-dir != ''
         shell: pwsh
         run: |
           echo "VS_DIR=${{ matrix.vsstudio-dir }}" > ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
@@ -571,15 +563,14 @@ jobs:
           echo "VS_HOST_ARCH=${env:VS_HOST_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
 
       - name: Export Visual Studio environment variables (Windows)
-        if: startsWith(matrix.dist_name, 'windows')
+        if: startsWith(matrix.dkml-host-abi, 'windows')
         shell: pwsh
         run: |
           Get-Content ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           Get-Content ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv >> $env:GITHUB_ENV
 
       - name: Use Visual Studio in dkml-* Opam packages (Windows)
-        if: startsWith(matrix.dist_name, 'windows')
-        shell: ${{ matrix.shell }}
+        if: startsWith(matrix.dkml-host-abi, 'windows')
         run: |
           PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
 
@@ -643,7 +634,7 @@ jobs:
       # Setup OCaml compiler
 
       - name: Install OCaml compiler (Windows)
-        if: startsWith(matrix.dist_name, 'windows')
+        if: startsWith(matrix.dkml-host-abi, 'windows')
         shell: cmd
         run: |
           @echo OFF
@@ -694,8 +685,7 @@ jobs:
           env %ENVARGS% opam upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain %M_DKMLOPTIONS% %M_DKMLOPTION_32BIT% %MOREARGS%
 
       - name: Install OCaml compiler (non-Windows)
-        if: "!startsWith(matrix.dist_name, 'windows')"
-        shell: ${{ matrix.shell }}
+        if: "!startsWith(matrix.dkml-host-abi, 'windows')"
         run: |
           # Place Opam in PATH.
           export PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
@@ -705,7 +695,6 @@ jobs:
       # Bundle
 
       - name: Bundle Opam and Sources
-        shell: ${{ matrix.shell }}
         run: |
           #!/bin/sh
           set -eufx
@@ -721,22 +710,20 @@ jobs:
           install -v "$GITHUB_WORKSPACE"/.ci/sd4/opamenv "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamenv
 
       - name: Bundle Opam and Sources (Windows)
-        if: startsWith(matrix.dist_name, 'windows')
-        shell: ${{ matrix.shell }}
+        if: startsWith(matrix.dkml-host-abi, 'windows')
         run: install -v "$GITHUB_WORKSPACE"/.ci/sd4/vsenv   "$GITHUB_WORKSPACE"/.ci/sd4/dist/vsenv
 
       - name: Bundle Opam and Sources (Windows fdopen)
-        if: inputs.use-fdopen-opam && startsWith(matrix.dist_name, 'windows')
-        shell: ${{ matrix.shell }}
+        if: inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')
         run: cp -rpv "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/Opam.Runtime.amd64 "$GITHUB_WORKSPACE"/.ci/sd4/dist/
 
       # Upload
 
       - name: Upload (Windows fdopen)
         uses: actions/upload-artifact@v3
-        if: inputs.use-fdopen-opam && startsWith(matrix.dist_name, 'windows')
+        if: inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')
         with:
-          name: setup-dkml-${{ matrix.dist_name }}
+          name: setup-dkml-${{ matrix.host_target_abis }}
           path: |
             .ci/sd4/dist/opamroot.tar.gz
             .ci/sd4/dist/opam${{ matrix.exe_ext }}
@@ -747,9 +734,9 @@ jobs:
 
       - name: Upload (Windows non-fdopen)
         uses: actions/upload-artifact@v3
-        if: "!inputs.use-fdopen-opam && startsWith(matrix.dist_name, 'windows')"
+        if: "!inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')"
         with:
-          name: setup-dkml-${{ matrix.dist_name }}
+          name: setup-dkml-${{ matrix.host_target_abis }}
           path: |
             .ci/sd4/dist/opamroot.tar.gz
             .ci/sd4/dist/opam${{ matrix.exe_ext }}
@@ -759,9 +746,9 @@ jobs:
 
       - name: Upload (non-Windows)
         uses: actions/upload-artifact@v3
-        if: "!startsWith(matrix.dist_name, 'windows')"
+        if: "!startsWith(matrix.dkml-host-abi, 'windows')"
         with:
-          name: setup-dkml-${{ matrix.dist_name }}
+          name: setup-dkml-${{ matrix.host_target_abis }}
           path: |
             .ci/sd4/dist/opamroot.tar.gz
             .ci/sd4/dist/opam${{ matrix.exe_ext }}
