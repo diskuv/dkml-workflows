@@ -714,48 +714,37 @@ jobs:
           # Place Opam, if not bootstrapped by a package manager, at start of PATH
           export PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:$PATH"
 
-          install -d "$GITHUB_WORKSPACE"/.ci/sd4/dist
+          install -d .ci/sd4/dist
 
-          tar cvCfz $OPAMROOT .ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build --exclude ./log .
+          tar cCfz $OPAMROOT .ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build --exclude ./log .
 
-          tar cvCfz .ci/sd4/g .ci/sd4/dist/sources.tar.gz .
+          tar cCfz .ci/sd4/g .ci/sd4/dist/sources.tar.gz .
 
-          install -v "$GITHUB_WORKSPACE"/.ci/sd4/opamenv "$GITHUB_WORKSPACE"/.ci/sd4/dist/opamenv
+          install .ci/sd4/opamenv .ci/sd4/dist/opamenv
 
           # Distribute whichever opam.exe we have been using
-          install -v $(command -v opam) "$GITHUB_WORKSPACE"/.ci/sd4/dist/opam${EXE_EXT}
+          install -d .ci/sd4/d
+          install -v $(command -v opam) .ci/sd4/d/opam${EXE_EXT}
+          pwd_unix=$(pwd) # $GITHUB_WORKSPACE as a Unix path
+          if [ -d .ci/sd4/bs/bin/Opam.Runtime.amd64 ]; then # include DLLs from fdopen
+            cp -rp .ci/sd4/bs/bin/Opam.Runtime.amd64/ .ci/sd4/d/
+          fi
+          tar cCfz .ci/sd4/d "$pwd_unix"/.ci/sd4/dist/opamexe.tar.gz .
 
       - name: Distribute Visual Studio environment (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
-        run: install -v "$GITHUB_WORKSPACE"/.ci/sd4/vsenv   "$GITHUB_WORKSPACE"/.ci/sd4/dist/vsenv
-
-      - name: Distribute Opam DLLs (Windows fdopen)
-        if: inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')
-        run: cp -rpv "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/Opam.Runtime.amd64 "$GITHUB_WORKSPACE"/.ci/sd4/dist/
+        run: install .ci/sd4/vsenv .ci/sd4/dist/vsenv
 
       # Upload
 
-      - name: Upload (Windows fdopen)
+      - name: Upload (Windows)
         uses: actions/upload-artifact@v3
-        if: inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')
+        if: startsWith(matrix.dkml-host-abi, 'windows')
         with:
           name: setup-dkml-${{ matrix.host_target_abis }}
           path: |
             .ci/sd4/dist/opamroot.tar.gz
-            .ci/sd4/dist/opam${{ matrix.exe_ext }}
-            .ci/sd4/dist/Opam.Runtime.amd64
-            .ci/sd4/dist/sources.tar.gz
-            .ci/sd4/dist/vsenv
-            .ci/sd4/dist/opamenv
-
-      - name: Upload (Windows non-fdopen)
-        uses: actions/upload-artifact@v3
-        if: "!inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')"
-        with:
-          name: setup-dkml-${{ matrix.host_target_abis }}
-          path: |
-            .ci/sd4/dist/opamroot.tar.gz
-            .ci/sd4/dist/opam${{ matrix.exe_ext }}
+            .ci/sd4/dist/opamexe.tar.gz
             .ci/sd4/dist/sources.tar.gz
             .ci/sd4/dist/vsenv
             .ci/sd4/dist/opamenv
@@ -767,6 +756,6 @@ jobs:
           name: setup-dkml-${{ matrix.host_target_abis }}
           path: |
             .ci/sd4/dist/opamroot.tar.gz
-            .ci/sd4/dist/opam${{ matrix.exe_ext }}
+            .ci/sd4/dist/opamexe.tar.gz
             .ci/sd4/dist/sources.tar.gz
             .ci/sd4/dist/opamenv
