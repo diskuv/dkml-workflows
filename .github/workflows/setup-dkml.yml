@@ -558,10 +558,10 @@ jobs:
             rm -rf "$OPAMROOT" # Clear any partial previous attempt
             if [ "$ISWINDOWS" = true ]; then
               eor=$(cygpath -am "$GITHUB_WORKSPACE"/.ci/sd4/eor)
-              opam init --disable-sandboxing --no-setup --kind local --bare "$eor"
-              case "$(opam --version)" in
+              .ci/sd4/env-opam opam init --disable-sandboxing --no-setup --kind local --bare "$eor"
+              case "$(.ci/sd4/env-opam opam --version)" in
                 2.0.*) echo 'download-command: wget' >> $OPAMROOT/config ;;
-                *)     opam option --yes --global download-command=wget
+                *)     .ci/sd4/env-opam opam option --yes --global download-command=wget
               esac
             elif [ "${{ matrix.in_docker }}" = "true" ]; then
               .ci/sd4/env-opam opam init --disable-sandboxing --no-setup --kind local --bare "/work/.ci/sd4/eor"
