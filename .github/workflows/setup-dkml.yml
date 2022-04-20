@@ -247,7 +247,7 @@ jobs:
 
       # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root
-      OPAM_BINARY_CACHE_KEY: r5_${{
+      OPAM_BINARY_CACHE_KEY: r1_${{
         inputs.use-fdopen-opam }}_${{
         matrix.dkml-host-abi }}_${{
         matrix.opam-abi }}_${{
