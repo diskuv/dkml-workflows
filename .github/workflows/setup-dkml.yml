@@ -88,6 +88,7 @@ jobs:
 
           - os: windows-2019 # 2019 has Visual Studio 2019
             host_target_abis: win32-windows_x86
+            bits: "32"
             default_shell: msys2 {0}
             exe_ext: .exe
             bootstrap-opam-version: "0.0.0"
@@ -102,6 +103,7 @@ jobs:
             vsstudio-arch: x86
           - os: windows-2019 # 2019 has Visual Studio 2019
             host_target_abis: win32-windows_x86_64
+            bits: "64"
             default_shell: msys2 {0}
             exe_ext: .exe
             bootstrap-opam-version: "0.0.0"
@@ -114,6 +116,7 @@ jobs:
           # other (future) VS versions.
           # - os: windows-2019 # 2019 has Visual Studio 2019
           #   host_target_abis: win32_1416-windows_64 # VS2017 compiler available to VS2019
+          #   bits: "64"
           #   default_shell: msys2 {0}
           #   exe_ext: .exe
           #   bootstrap-opam-version: "0.0.0"
@@ -137,6 +140,7 @@ jobs:
           # `opam upgrade`. See https://github.com/diskuv/dkml-component-ocamlcompiler/runs/6059642542?check_suite_focus=true
           # - os: windows-2022
           #   host_target_abis: win32_2022-windows_x86_64
+          #   bits: "64"
           #   default_shell: msys2 {0}
           #   exe_ext: .exe
           #   bootstrap-opam-version: "0.0.0"
@@ -153,30 +157,83 @@ jobs:
 
           - os: macos-latest
             host_target_abis: macos-darwin_all
+            bits: "64"
             default_shell: sh
             bootstrap-opam-version: "os"
             dkml-host-abi: darwin_x86_64
             opam-root: /Users/runner/.opam
 
+          # --- NOT APPLICABLE: BUG FIXED ---
+          # OCaml 4.12.1 can't compile on manylinux2014 x86 (32-bit). It gives:
+          #
+          #     /opt/rh/devtoolset-10/root/usr/bin/gcc -c -O2 -fno-strict-aliasing -fwrapv -Wall -Wdeclaration-after-statement -fno-common -fexcess-precision=standard -fno-tree-vrp -ffunction-sections -g -Wno-format -D_FILE_OFFSET_BITS=64 -D_REENTRANT -DCAML_NAME_SPACE   -DCAMLDLLIMPORT= -DNATIVE_CODE -DTARGET_amd64 -DMODEL_default -DSYS_linux   -o signals_nat.n.o signals_nat.c
+          #     In file included from signals_nat.c:35:
+          #     signals_nat.c: In function ‘segv_handler’:
+          #     signals_osdep.h:34:72: error: ‘REG_CR2’ undeclared (first use in this function); did you mean ‘REG_CS’?
+          #       34 |   #define CONTEXT_FAULTING_ADDRESS ((char *)context->uc_mcontext.gregs[REG_CR2])
+          #           |                                                                        ^~~~~~~
+          #     signals_nat.c:207:16: note: in expansion of macro ‘CONTEXT_FAULTING_ADDRESS’
+          #       207 |   fault_addr = CONTEXT_FAULTING_ADDRESS;
+          #           |                ^~~~~~~~~~~~~~~~~~~~~~~~
+          #     signals_osdep.h:34:72: note: each undeclared identifier is reported only once for each function it appears in
+          #       34 |   #define CONTEXT_FAULTING_ADDRESS ((char *)context->uc_mcontext.gregs[REG_CR2])
+          #           |                                                                        ^~~~~~~
+          #     signals_nat.c:207:16: note: in expansion of macro ‘CONTEXT_FAULTING_ADDRESS’
+          #       207 |   fault_addr = CONTEXT_FAULTING_ADDRESS;
+          #           |                ^~~~~~~~~~~~~~~~~~~~~~~~
+          #     signals_osdep.h:32:50: error: ‘REG_RSP’ undeclared (first use in this function); did you mean ‘REG_ESP’?
+          #       32 |   #define CONTEXT_SP (context->uc_mcontext.gregs[REG_RSP])
+          #           |                                                  ^~~~~~~
+          #     signals_nat.c:210:33: note: in expansion of macro ‘CONTEXT_SP’
+          #       210 |       && (uintnat)fault_addr >= CONTEXT_SP - EXTRA_STACK
+          #           |                                 ^~~~~~~~~~
+          #     signals_osdep.h:31:50: error: ‘REG_RIP’ undeclared (first use in this function); did you mean ‘REG_EIP’?
+          #       31 |   #define CONTEXT_PC (context->uc_mcontext.gregs[REG_RIP])
+          #           |                                                  ^~~~~~~
+          #     signals_nat.c:212:49: note: in expansion of macro ‘CONTEXT_PC’
+          #       212 |       && caml_find_code_fragment_by_pc((char *) CONTEXT_PC) != NULL
+          #           |                                                 ^~~~~~~~~~
+          #     make[1]: *** [signals_nat.n.o] Error 1
+          #     make[1]: Leaving directory `/work/opamroot/dkml/src-ocaml/runtime'
+          #     make: *** [makeruntimeopt] Error 2
+          #     FATAL: make opt-core failed
           - os: ubuntu-latest
             host_target_abis: manylinux2014-linux_x86
+            bits: "32"
+            comment: (CentOS 7, etc.)
             default_shell: sh
             bootstrap-opam-version: "os"
             dkml-host-abi: linux_x86
             opam-root: opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
+            in_docker: "true"
             dockcross_image: dockcross/manylinux2014-x86
             #   Gets rid of: WARNING: The requested image's platform (linux/386) does not match the detected host platform (linux/amd64) and no specific platform was requested
-            docker_run_extra_args: --platform linux/386
+            dockcross_run_extra_args: --platform linux/386
+
+          # - os: ubuntu-latest
+          #   host_target_abis: manylinux_2_24-linux_x86
+          #   bits: "32"
+          #   comment: (glibc>=2.24, Debian 9, etc.)
+          #   default_shell: sh
+          #   bootstrap-opam-version: "os"
+          #   dkml-host-abi: linux_x86
+          #   opam-root: opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
+          #   docker_runner: docker run --platform linux/386 --rm -v $GITHUB_WORKSPACE:/work --workdir=/work quay.io/pypa/manylinux_2_24_i686 linux32
+          #   in_docker: "true"
+
           - os: ubuntu-latest
             host_target_abis: manylinux2014-linux_x86_64
+            bits: "64"
+            comment: (CentOS 7, etc.)
             default_shell: sh
             bootstrap-opam-version: "os"
             dkml-host-abi: linux_x86_64
             opam-root: opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
             dockcross_image: dockcross/manylinux2014-x64
+            in_docker: "true"
 
     runs-on: ${{ matrix.os }}
-    name: ${{ matrix.host_target_abis }}
+    name: ${{ matrix.host_target_abis }} ${{ matrix.comment }}
 
     defaults:
       run:
@@ -271,17 +328,6 @@ jobs:
           path: .ci/sd4/drd
           ref: 1bf73a207e054bd60b620c863a88d7c34a0efac6
 
-      - name: Get dockcross and Opam prerequisites (ManyLinux)
-        if: startsWith(matrix.host_target_abis, 'manylinux')
-        run: |
-          install -d .ci/sd4
-          docker run ${{ matrix.docker_run_extra_args }} --rm "${{ matrix.dockcross_image }}" > .ci/sd4/dockcross
-          chmod +x .ci/sd4/dockcross
-
-          # rsync needs to be available, even after Docker container disappears
-          install -d .ci/sd4/bs/bin
-          .ci/sd4/dockcross sh -xc 'sudo yum install -y rsync && install -v $(command -v rsync) .ci/sd4/bs/bin'
-
       #   Bootstrap from historical release
       - name: Cache Opam bootstrap by OS
         if: matrix.bootstrap-opam-version != 'os'
@@ -375,6 +421,37 @@ jobs:
             fi
           fi
 
+      # Opam prerequisites for using opam (not for installing opam)
+
+      - name: Get dockcross and Opam prerequisites (ManyLinux)
+        if: matrix.dockcross_image != ''
+        run: |
+          install -d .ci/sd4
+          docker run ${{ matrix.dockcross_run_extra_args }} --rm "${{ matrix.dockcross_image }}" > .ci/sd4/dockcross
+          chmod +x .ci/sd4/dockcross
+
+          # rsync needs to be available, even after Docker container disappears
+          if [ ! -e .ci/sd4/bs/bin/rsync ]; then
+            install -d .ci/sd4/bs/bin
+            .ci/sd4/dockcross --args "${{ matrix.dockcross_run_extra_args }}" sh -xc 'sudo yum install -y rsync && install -v $(command -v rsync) .ci/sd4/bs/bin'
+          fi
+
+      - name: Get Opam prerequisites (Linux Docker)
+        if: matrix.docker_runner != ''
+        run: |
+          # rsync needs to be available, even after Docker container disappears
+          if [ ! -e .ci/sd4/bs/bin/rsync.deps ]; then
+            install -d .ci/sd4/bs/bin
+            ${{ matrix.docker_runner }} sh -xc '
+              apt-get update &&
+              apt-get install -y rsync &&
+              ldd /usr/bin/rsync &&
+              ls -l /lib/i386-linux-gnu/libpopt.so.0 /lib/i386-linux-gnu/libacl.so.1 /lib/i386-linux-gnu/libattr.so.1 &&
+              tar cvCfhz / /work/.ci/sd4/bs/bin/deps.tar.gz /usr/bin/rsync /lib/i386-linux-gnu/libpopt.so.0
+            '
+            touch .ci/sd4/bs/bin/rsync.deps
+          fi
+
       # Build OCaml
 
       - name: Cache Opam root by (host,target)
@@ -401,31 +478,65 @@ jobs:
           EOF
 
           # running Opam
-          if [ -x .ci/sd4/dockcross ]; then
 
-            cat > .ci/sd4/env-opam-real <<EOF
+          USER_ID=$(id -u)
+          GROUP_ID=$(id -g)
+          USER_NAME=$(id -un)
+          GROUP_NAME=$(id -gn)
+
+          cat > .ci/sd4/env-opam-real <<EOF
           #!/bin/sh
+          set -euf
           export PATH="/work/.ci/sd4/bs/bin:\$PATH"
           export OPAMROOT=/work/opamroot
           exec "\$@"
           EOF
-            cat .ci/sd4/env-opam-real
-            chmod +x .ci/sd4/env-opam-real
+
+          cat > .ci/sd4/env-opam-deescalate <<EOF
+          #!/bin/sh
+          set -euf
+
+          if [ -e /work/.ci/sd4/bs/bin/deps.tar.gz ]; then
+            tar xCfz / /work/.ci/sd4/bs/bin/deps.tar.gz
+          fi
+
+          groupadd -g ${GROUP_ID} ${GROUP_NAME}
+          useradd -l -m -u ${USER_ID} -g ${GROUP_ID} ${USER_NAME}
+          exec runuser -u ${USER_NAME} -g ${GROUP_NAME} -- "\$@"
+          EOF
+
+          chmod +x .ci/sd4/env-opam-real .ci/sd4/env-opam-deescalate
+
+          if [ -x .ci/sd4/dockcross ]; then
+
+            cat .ci/sd4/env-opam-real >&2
             cat > .ci/sd4/env-opam <<EOF
           #!/bin/sh
-          exec "$GITHUB_WORKSPACE"/.ci/sd4/dockcross /work/.ci/sd4/env-opam-real "\$@"
+          set -euf
+          exec "$GITHUB_WORKSPACE"/.ci/sd4/dockcross --args "${{ matrix.dockcross_run_extra_args }}" /work/.ci/sd4/env-opam-real "\$@"
+          EOF
+
+          elif [ -n "${{ matrix.docker_runner }}" ]; then
+
+            cat .ci/sd4/env-opam-real >&2
+            cat .ci/sd4/env-opam-deescalate >&2
+            cat > .ci/sd4/env-opam <<EOF
+          #!/bin/sh
+          set -euf
+          exec ${{ matrix.docker_runner }} /work/.ci/sd4/env-opam-deescalate /work/.ci/sd4/env-opam-real "\$@"
           EOF
 
           else
 
             cat > .ci/sd4/env-opam <<EOF
           #!/bin/sh
+          set -euf
           export PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:\$PATH"
           exec "\$@"
           EOF
 
           fi
-          cat .ci/sd4/env-opam
+          cat .ci/sd4/env-opam >&2
           chmod +x .ci/sd4/env-opam
 
       - name: Initialize Opam root
@@ -450,7 +561,7 @@ jobs:
                 2.0.*) echo 'download-command: wget' >> $OPAMROOT/config ;;
                 *)     opam option --yes --global download-command=wget
               esac
-            elif [ -x .ci/sd4/dockcross ]; then
+            elif [ "${{ matrix.in_docker }}" = "true" ]; then
               .ci/sd4/env-opam opam init --disable-sandboxing --no-setup --kind local --bare "/work/.ci/sd4/eor"
             else
               .ci/sd4/env-opam opam init --disable-sandboxing --no-setup --kind local --bare "$GITHUB_WORKSPACE/.ci/sd4/eor"
@@ -512,7 +623,7 @@ jobs:
         run: |
           #!/bin/sh
           set -eufx
-          cat $OPAMROOT/config
+          cat $OPAMROOT/config >&2
           if ! .ci/sd4/env-opam opam switch list --short | grep '^dkml$'; then .ci/sd4/env-opam opam switch create dkml --repos diskuv,default --empty --yes; fi
 
       # The action/checkout steps used for pinning will re-use existing Git objects
@@ -689,7 +800,7 @@ jobs:
 
           case "$(.ci/sd4/env-opam opam --version)" in
             2.0.*)
-              if [ -x .ci/sd4/dockcross ]; then
+              if [ "${{ matrix.in_docker }}" = "true" ]; then
                 echo Opam 2.0 support in dockcross to use a portable opam var prefix not yet implemented
                 exit 67
               fi
@@ -712,7 +823,7 @@ jobs:
               echo "  [DKML_COMPILE_VS_CMAKEGENERATOR = \"$E_VS_CMAKEGENERATOR\"]" >> $OPSC
               echo "  [DKML_HOST_ABI = \"$M_DKMLHOSTABI\"]" >> $OPSC
               echo ']' >> $OPSC
-              cat $OPSC # print
+              cat $OPSC >&2 # print
               ;;
             *)
               .ci/sd4/env-opam opam option setenv= # reset
@@ -737,13 +848,13 @@ jobs:
           if grep -q '; export' .ci/sd4/opamenv; then
             .ci/sd4/env-opam opam env | grep -v '^PATH=' | sed "s#; export.*##; s#'##g; s#^#SET #; s#\\\\\\\\#\\\\#g" > "$GITHUB_WORKSPACE"/.ci/sd4/opamenv
           fi
-          cat "$GITHUB_WORKSPACE"/.ci/sd4/opamenv
+          cat "$GITHUB_WORKSPACE"/.ci/sd4/opamenv >&2
 
       - name: Capture Opam environment (non-Windows)
         if: "!startsWith(matrix.dkml-host-abi, 'windows')"
         run: |
           .ci/sd4/env-opam opam env > .ci/sd4/opamenv
-          cat .ci/sd4/opamenv
+          cat .ci/sd4/opamenv >&2
 
       # Setup OCaml compiler
 
@@ -776,7 +887,7 @@ jobs:
               set ENVARGS=OPAMDOWNLOADJOBS=1
             )
           )
-          if "%M_DKMLHOSTABI:~-4%" == "_x86" (
+          if "${{ matrix.bits }}" == "32" (
             set M_DKMLOPTION_32BIT=dkml-option-32bit
           )
 
@@ -801,6 +912,9 @@ jobs:
       - name: Install OCaml compiler (non-Windows)
         if: "!startsWith(matrix.dkml-host-abi, 'windows')"
         run: |
+          #!/bin/sh
+          set -eufx
+          if [ "${{ matrix.bits }}" = 32 ]; then M_DKMLOPTION_32BIT=dkml-option-32bit; else M_DKMLOPTION_32BIT=; fi
           if ! .ci/sd4/env-opam opam upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain $M_DKMLOPTIONS $M_DKMLOPTION_32BIT; then
             printf "\n\n========= [START OF TROUBLESHOOTING] ===========\n\n" >&2
             find "$OPAMROOT"/log -mindepth 1 -maxdepth 1 -name "*.out" ! -name "log-*.out" ! -name "ocaml-variants-*.out" | while read -r dump_on_error_LOG; do
@@ -831,10 +945,10 @@ jobs:
 
           # Distribute whichever opam.exe we have been using
           install -d .ci/sd4/d
-          printf "#!/bin/sh\ninstall -v %s .ci/sd4/d/opam%s" '$(command -v opam)' "${EXE_EXT}" > .ci/sd4/export-opam.sh
-          cat .ci/sd4/export-opam.sh
+          printf "#!/bin/sh\ninstall -v %s .ci/sd4/d/opam%s\n" '$(command -v opam)' "${EXE_EXT}" > .ci/sd4/export-opam.sh
+          cat .ci/sd4/export-opam.sh >&2
           chmod +x .ci/sd4/export-opam.sh
-          .ci/sd4/env-opam .ci/sd4/export-opam.sh          
+          .ci/sd4/env-opam .ci/sd4/export-opam.sh
           pwd_unix=$(pwd) # $GITHUB_WORKSPACE as a Unix path
           if [ -d .ci/sd4/bs/bin/Opam.Runtime.amd64 ]; then # include DLLs from fdopen
             cp -rp .ci/sd4/bs/bin/Opam.Runtime.amd64/ .ci/sd4/d/
