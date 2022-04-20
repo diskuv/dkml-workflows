@@ -1,3 +1,4 @@
+# setup-dkml. Short form: sd4
 name: setup-dkml
 
 env:
@@ -9,6 +10,46 @@ env:
 
 on:
   workflow_call:
+    outputs:
+      import_func: 
+        description: |
+          A shell script that can be eval'd or executed inline in a POSIX shell, that defines
+          a shell function 'import'. When 'import HOST_TARGET_ABIS' is called a `opamrun`
+          command will be available to subsequent GitHub Action steps.
+        value: |
+          import() {
+            import_HOST_TARGET_ABIS=$1
+            shift
+
+            ls -R .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS} >&2
+
+            install -d "$OPAMROOT"
+            tar xCfz "$OPAMROOT" .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/opamroot.tar.gz
+
+            install -d .ci/sd4/g
+            tar xCfz .ci/sd4/g .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/sources.tar.gz
+
+            # Extract Opam executable and scripts
+            tar xvf .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/env-opam.tar
+
+            # Expose opamrun to remaining GitHub Action steps
+            opamrunabs="$GITHUB_WORKSPACE/.ci/sd4/opamrun"
+            if [ -x /usr/bin/cygpath ]; then opamrunabs=$(/usr/bin/cygpath -aw "$opamrunabs"); fi
+            echo "$opamrunabs" >> $GITHUB_PATH
+            #   Special case: GITHUB_PATH does not influence msys2.CMD of msys2/setup-msys2@v2, so place in real MSYS2 PATH
+            if [ "${MSYSTEM:-}" = MSYS ]; then
+              install -d /usr/local/bin
+              install -v .ci/sd4/opamrun/opamrun /usr/local/bin/opamrun
+              # Also get rid of link.exe; it interferes with MSVC's link.exe
+              mv -v /usr/bin/link.exe /usr/bin/link.gnu.exe
+            fi
+
+            # Expose Visual Studio environment variables
+            if [ -e .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/vsenv ]; then
+              cat .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/vsenv >> $GITHUB_ENV
+            fi
+          }
+
     inputs:
       use-fdopen-opam:
         type: boolean
@@ -206,7 +247,7 @@ jobs:
             default_shell: sh
             bootstrap-opam-version: "os"
             dkml-host-abi: linux_x86
-            opam-root: opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
+            opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
             in_docker: "true"
             dockcross_image: dockcross/manylinux2014-x86
             #   Gets rid of: WARNING: The requested image's platform (linux/386) does not match the detected host platform (linux/amd64) and no specific platform was requested
@@ -219,7 +260,7 @@ jobs:
           #   default_shell: sh
           #   bootstrap-opam-version: "os"
           #   dkml-host-abi: linux_x86
-          #   opam-root: opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
+          #   opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
           #   docker_runner: docker run --platform linux/386 --rm -v $GITHUB_WORKSPACE:/work --workdir=/work quay.io/pypa/manylinux_2_24_i686 linux32
           #   in_docker: "true"
 
@@ -230,7 +271,7 @@ jobs:
             default_shell: sh
             bootstrap-opam-version: "os"
             dkml-host-abi: linux_x86_64
-            opam-root: opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
+            opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
             dockcross_image: dockcross/manylinux2014-x64
             in_docker: "true"
 
@@ -425,6 +466,15 @@ jobs:
 
       # Opam prerequisites for using opam (not for installing opam)
 
+      - name: Start environment distribution tarball
+        # We use .tar rather than .tar.gz/.tar.bz2 because we can
+        # repeatedly add to an uncompressed .tar. But we need to
+        # start with an empty tarball since some tar programs will
+        # only add (`tar rf xyz.tar`) to an existing .tar.
+        run: |
+          install -d .ci/sd4/dist
+          tar cf .ci/sd4/dist/env-opam.tar -T /dev/null
+
       - name: Get dockcross and Opam prerequisites (ManyLinux)
         if: matrix.dockcross_image != ''
         run: |
@@ -432,11 +482,17 @@ jobs:
           docker run ${{ matrix.dockcross_run_extra_args }} --rm "${{ matrix.dockcross_image }}" > .ci/sd4/dockcross
           chmod +x .ci/sd4/dockcross
 
+          # Bundle for consumers of setup-dkml.yml
+          tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/dockcross
+
           # rsync needs to be available, even after Docker container disappears
           if [ ! -e .ci/sd4/bs/bin/rsync ]; then
             install -d .ci/sd4/bs/bin
             .ci/sd4/dockcross --args "${{ matrix.dockcross_run_extra_args }}" sh -xc 'sudo yum install -y rsync && install -v $(command -v rsync) .ci/sd4/bs/bin'
           fi
+
+          # Bundle for consumers of setup-dkml.yml
+          tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/bs/bin/rsync
 
       - name: Get Opam prerequisites (Linux Docker)
         if: matrix.docker_runner != ''
@@ -454,7 +510,7 @@ jobs:
             touch .ci/sd4/bs/bin/rsync.deps
           fi
 
-      # Build OCaml
+      # Setup Opam
 
       - name: Cache Opam root by (host,target)
         uses: actions/cache@v2
@@ -466,12 +522,15 @@ jobs:
           key:
             ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-opamroot-${{ env.OPAM_BINARY_CACHE_KEY }}
 
-      - name: Write Opam scripts
+      - name: Write and Distribute Opam scripts
         run: |
           #!/bin/sh
           set -eufx
 
-          # empty opam repository
+          # ---------------------
+          # Empty opam repository
+          # ---------------------
+
           install -d .ci/sd4/eor
           cat > .ci/sd4/eor/repo <<EOF
           opam-version: "2.0"
@@ -479,20 +538,31 @@ jobs:
           upstream: "https://github.com/ocaml/opam-repository/tree/master/"
           EOF
 
-          # running Opam
+          # ---------------
+          # Create Opam support scripts (not needed for all platforms)
+          #   The PATH to find opam must work internally in setup-dkml.yml (sd4/bs/bin) and
+          #   by consumers of setup-dkml.yml (sd4/opamexe)
+          # ---------------
 
           USER_ID=$(id -u)
           GROUP_ID=$(id -g)
           USER_NAME=$(id -un)
           GROUP_NAME=$(id -gn)
 
-          cat > .ci/sd4/env-opam-real <<EOF
+          case "${{ matrix.opam-root }}" in
+            /* | ?:*) # /a/b/c or C:\Windows
+              ;;
+            *) # relative path
+              cat > .ci/sd4/env-opam-real <<EOF
           #!/bin/sh
           set -euf
-          export PATH="/work/.ci/sd4/bs/bin:\$PATH"
-          export OPAMROOT=/work/opamroot
+          export PATH="/work/.ci/sd4/bs/bin:/work/.ci/sd4/opamexe:\$PATH"
+          export OPAMROOT=/work/${{ matrix.opam-root }}
           exec "\$@"
           EOF
+              chmod +x .ci/sd4/env-opam-real
+              ;;
+          esac
 
           cat > .ci/sd4/env-opam-deescalate <<EOF
           #!/bin/sh
@@ -507,39 +577,78 @@ jobs:
           exec runuser -u ${USER_NAME} -g ${GROUP_NAME} -- "\$@"
           EOF
 
-          chmod +x .ci/sd4/env-opam-real .ci/sd4/env-opam-deescalate
+          chmod +x .ci/sd4/env-opam-deescalate
+
+          # -----------------------------------
+          # Create env-opam
+          # -----------------------------------
+
+          install -d .ci/sd4/dist
 
           if [ -x .ci/sd4/dockcross ]; then
 
-            cat .ci/sd4/env-opam-real >&2
             cat > .ci/sd4/env-opam <<EOF
           #!/bin/sh
           set -euf
           exec "$GITHUB_WORKSPACE"/.ci/sd4/dockcross --args "${{ matrix.dockcross_run_extra_args }}" /work/.ci/sd4/env-opam-real "\$@"
           EOF
+            chmod +x .ci/sd4/env-opam
+
+            # Bundle for consumers of setup-dkml.yml
+            cat .ci/sd4/env-opam-real >&2
+            tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/env-opam .ci/sd4/env-opam-real
 
           elif [ -n "${{ matrix.docker_runner }}" ]; then
 
-            cat .ci/sd4/env-opam-real >&2
-            cat .ci/sd4/env-opam-deescalate >&2
             cat > .ci/sd4/env-opam <<EOF
           #!/bin/sh
           set -euf
           exec ${{ matrix.docker_runner }} /work/.ci/sd4/env-opam-deescalate /work/.ci/sd4/env-opam-real "\$@"
           EOF
+            chmod +x .ci/sd4/env-opam
+
+            # Bundle for consumers of setup-dkml.yml
+            cat .ci/sd4/env-opam-real >&2
+            cat .ci/sd4/env-opam-deescalate >&2
+            tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/env-opam .ci/sd4/env-opam-real .ci/sd4/env-opam-deescalate
 
           else
 
             cat > .ci/sd4/env-opam <<EOF
           #!/bin/sh
           set -euf
-          export PATH="$GITHUB_WORKSPACE/.ci/sd4/bs/bin:\$PATH"
+          export PATH="\$GITHUB_WORKSPACE/.ci/sd4/bs/bin:\$GITHUB_WORKSPACE/.ci/sd4/opamexe:\$PATH"
           exec "\$@"
           EOF
+            chmod +x .ci/sd4/env-opam
+
+            # Bundle for consumers of setup-dkml.yml
+            tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/env-opam
 
           fi
           cat .ci/sd4/env-opam >&2
-          chmod +x .ci/sd4/env-opam
+
+          # -------
+          # opamrun
+          # -------
+
+          install -d .ci/sd4/opamrun
+          cat > .ci/sd4/opamrun/opamrun <<EOF
+          #!/bin/sh
+          set -euf
+          exec "\$GITHUB_WORKSPACE/.ci/sd4/env-opam" opam "\$@"
+          EOF
+          chmod +x .ci/sd4/opamrun/opamrun
+
+          # Boilerplate to expose opamrun (also used for consumers of setup-dkml.yml)
+          opamrunabs="$GITHUB_WORKSPACE/.ci/sd4/opamrun"
+          if [ -x /usr/bin/cygpath ]; then opamrunabs=$(/usr/bin/cygpath -aw "$opamrunabs"); fi
+          echo "$opamrunabs" >> $GITHUB_PATH
+          # Special case: GITHUB_PATH does not influence msys2.CMD of msys2/setup-msys2@v2, so place in real MSYS2 PATH
+          if [ "${MSYSTEM:-}" = MSYS ]; then install -d /usr/local/bin; install -v .ci/sd4/opamrun/opamrun /usr/local/bin/opamrun; fi
+
+          # Bundle for consumers of setup-dkml.yml
+          tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/opamrun
 
       - name: Initialize Opam root
         env:
@@ -558,19 +667,21 @@ jobs:
             rm -rf "$OPAMROOT" # Clear any partial previous attempt
             if [ "$ISWINDOWS" = true ]; then
               eor=$(cygpath -am "$GITHUB_WORKSPACE"/.ci/sd4/eor)
-              .ci/sd4/env-opam opam init --disable-sandboxing --no-setup --kind local --bare "$eor"
-              case "$(.ci/sd4/env-opam opam --version)" in
+              opamrun init --disable-sandboxing --no-setup --kind local --bare "$eor"
+              case "$(opamrun --version)" in
                 2.0.*) echo 'download-command: wget' >> $OPAMROOT/config ;;
-                *)     .ci/sd4/env-opam opam option --yes --global download-command=wget
+                *)     opamrun option --yes --global download-command=wget
               esac
             elif [ "${{ matrix.in_docker }}" = "true" ]; then
-              .ci/sd4/env-opam opam init --disable-sandboxing --no-setup --kind local --bare "/work/.ci/sd4/eor"
+              opamrun init --disable-sandboxing --no-setup --kind local --bare "/work/.ci/sd4/eor"
             else
-              .ci/sd4/env-opam opam init --disable-sandboxing --no-setup --kind local --bare "$GITHUB_WORKSPACE/.ci/sd4/eor"
+              opamrun init --disable-sandboxing --no-setup --kind local --bare "$GITHUB_WORKSPACE/.ci/sd4/eor"
             fi
             touch "$OPAMROOT/.ci.root-init"
           fi
-          .ci/sd4/env-opam opam var --global || true
+          opamrun var --global || true
+
+      # Build OCaml
 
       - name: Cache Opam downloads and repositories by (host,target)
         uses: actions/cache@v2
@@ -594,10 +705,10 @@ jobs:
             export TEMP=$(cygpath -am "$RUNNER_TEMP")
           fi
           if [ ! -e "$OPAMROOT/.ci.repo-init" ]; then
-            .ci/sd4/env-opam opam repository remove default --yes --all --dont-select || true
-            .ci/sd4/env-opam opam repository remove diskuv --yes --all --dont-select || true
-            .ci/sd4/env-opam opam repository add default https://opam.ocaml.org --yes --dont-select
-            .ci/sd4/env-opam opam repository add diskuv "git+https://github.com/diskuv/diskuv-opam-repository.git#${DISKUV_OPAM_REPOSITORY:-$DEFAULT_DISKUV_OPAM_REPOSITORY_TAG}" --yes --dont-select
+            opamrun repository remove default --yes --all --dont-select || true
+            opamrun repository remove diskuv --yes --all --dont-select || true
+            opamrun repository add default https://opam.ocaml.org --yes --dont-select
+            opamrun repository add diskuv "git+https://github.com/diskuv/diskuv-opam-repository.git#${DISKUV_OPAM_REPOSITORY:-$DEFAULT_DISKUV_OPAM_REPOSITORY_TAG}" --yes --dont-select
             touch "$OPAMROOT/.ci.repo-init"
           fi
 
@@ -626,7 +737,7 @@ jobs:
           #!/bin/sh
           set -eufx
           cat $OPAMROOT/config >&2
-          if ! .ci/sd4/env-opam opam switch list --short | grep '^dkml$'; then .ci/sd4/env-opam opam switch create dkml --repos diskuv,default --empty --yes; fi
+          if ! opamrun switch list --short | grep '^dkml$'; then opamrun switch create dkml --repos diskuv,default --empty --yes; fi
 
       # The action/checkout steps used for pinning will re-use existing Git objects
       # because of caching
@@ -649,7 +760,7 @@ jobs:
 
       - name: Pin dkml-base-compiler to checkout instead of Opam repository
         if: env.DKML_BASE_COMPILER != '@repository@'
-        run: .ci/sd4/env-opam opam pin add --yes --no-action dkml-base-compiler .ci/sd4/g/dkml-base-compiler
+        run: opamrun pin add --yes --no-action dkml-base-compiler .ci/sd4/g/dkml-base-compiler
 
       # conf-dkml-cross-toolchain
 
@@ -663,7 +774,7 @@ jobs:
 
       - name: Pin conf-dkml-cross-toolchain to checkout instead of Opam repository
         if: env.CONF_DKML_CROSS_TOOLCHAIN != '@repository@'
-        run: .ci/sd4/env-opam opam pin add --yes --no-action conf-dkml-cross-toolchain .ci/sd4/g/conf-dkml-cross-toolchain
+        run: opamrun pin add --yes --no-action conf-dkml-cross-toolchain .ci/sd4/g/conf-dkml-cross-toolchain
 
       # ocaml
 
@@ -677,7 +788,7 @@ jobs:
 
       - name: Pin ocaml.4.12.1 to checkout instead of Opam repository
         if: env.INPUT_OCAML != '@repository@'
-        run: .ci/sd4/env-opam opam pin add --yes --no-action ocaml.4.12.1 .ci/sd4/g/ocaml
+        run: opamrun pin add --yes --no-action ocaml.4.12.1 .ci/sd4/g/ocaml
 
       # ocaml-config
 
@@ -691,7 +802,7 @@ jobs:
 
       - name: Pin ocaml-config.2 to checkout instead of Opam repository
         if: env.OCAML_CONFIG != '@repository@'
-        run: .ci/sd4/env-opam opam pin add --yes --no-action ocaml-config.2 .ci/sd4/g/ocaml-config
+        run: opamrun pin add --yes --no-action ocaml-config.2 .ci/sd4/g/ocaml-config
 
       # dkml-option-32bit
 
@@ -705,7 +816,7 @@ jobs:
 
       - name: Pin dkml-option-32bit to checkout instead of Opam repository
         if: env.DKML_OPTION_32BIT != '@repository@'
-        run: .ci/sd4/env-opam opam pin add --yes --no-action dkml-option-32bit .ci/sd4/g/dkml-option-32bit
+        run: opamrun pin add --yes --no-action dkml-option-32bit .ci/sd4/g/dkml-option-32bit
 
       # patches necessary for Windows in diskuv-opam-repository
       #
@@ -739,11 +850,11 @@ jobs:
 
       - name: Pins for packages in diskuv-opam-repository
         run: |
-          .ci/sd4/env-opam opam pin add --yes --no-action -k version ocamlfind ${{ env.PIN_OCAMLFIND }}
-          .ci/sd4/env-opam opam pin add --yes --no-action -k version ocamlbuild ${{ env.PIN_OCAMLBUILD }}
-          .ci/sd4/env-opam opam pin add --yes --no-action -k version dune ${{ env.PIN_DUNE }}
-          .ci/sd4/env-opam opam pin add --yes --no-action -k version dune-configurator ${{ env.PIN_DUNE }}
-          .ci/sd4/env-opam opam pin add --yes --no-action -k version ppx_expect ${{ env.PPX_EXPECT }}
+          opamrun pin add --yes --no-action -k version ocamlfind ${{ env.PIN_OCAMLFIND }}
+          opamrun pin add --yes --no-action -k version ocamlbuild ${{ env.PIN_OCAMLBUILD }}
+          opamrun pin add --yes --no-action -k version dune ${{ env.PIN_DUNE }}
+          opamrun pin add --yes --no-action -k version dune-configurator ${{ env.PIN_DUNE }}
+          opamrun pin add --yes --no-action -k version ppx_expect ${{ env.PPX_EXPECT }}
 
       # Setup C compiler
 
@@ -814,6 +925,69 @@ jobs:
           Get-Content ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           Get-Content ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv >> $env:GITHUB_ENV
 
+      - name: Create Visual Studio support scripts (Windows)
+        if: startsWith(matrix.dkml-host-abi, 'windows')
+        shell: pwsh
+        run: |
+          # MSVC environment variables:
+          # 1. https://docs.microsoft.com/en-us/cpp/build/reference/cl-environment-variables?view=msvc-170
+          # 2. https://docs.microsoft.com/en-us/cpp/build/reference/linking?view=msvc-170#link-environment-variables (except TMP)
+          $awk = @"
+          BEGIN{FS="="}
+          `$1=="CL"||`$1=="_CL_"||`$1=="INCLUDE"||`$1=="LIBPATH" {print}
+          `$1=="LINK"||`$1=="_LINK_"||`$1=="LIB"||`$1=="PATH" {print}
+          "@
+          [IO.File]::WriteAllLines(".ci/sd4/msvcenv.awk", $awk)
+      - name: Capture Visual Studio compiler environment (Windows)
+        if: startsWith(matrix.dkml-host-abi, 'windows')
+        shell: cmd
+        run: |
+          @echo OFF
+
+          REM The OCaml dkml-base-compiler will compile fine but any other
+          REM packages (ocamlbuild, etc.) which
+          REM need a native compiler will fail without the MSVC compiler in the
+          REM PATH. There isn't a `with-dkml.exe` alternative available at
+          REM this stage of the GitHub workflow.
+          call "%VS_DIR%\Common7\Tools\VsDevCmd.bat" -no_logo -host_arch=%VS_HOST_ARCH% -arch=%VS_ARCH% -vcvars_ver=%VS_VCVARSVER% -winsdk=%VS_WINSDKVER%
+          if %ERRORLEVEL% neq 0 (
+            echo.
+            echo.The "%VS_DIR%\Common7\Tools\VsDevCmd.bat" command failed
+            echo.with exit code %ERRORLEVEL%.
+            echo.
+            exit /b %ERRORLEVEL%
+          )
+
+          REM VsDevCmd.bat turns off echo; be explicit if we want it on or off
+          @echo OFF
+
+          REM We must place MSYS2 in front of path so that MSYS2
+          REM tar.exe is used instead of Windows tar.exe.
+          REM But setup-msys2 puts MSYS2 in a temp directory when release=false.
+          REM So we use setup-msys2's `msys2 -c` wrapper.
+          REM FOR /F "tokens=* usebackq" %%F IN (`msys2 -c "cygpath -aw /usr/bin"`) DO (
+          REM   set "MSYS2BIN=%%F"
+          REM )
+          REM set PATH=%MSYS2BIN%;%PATH%
+
+          REM MSVC environment variables in Unix format, so use msys2 to do that.
+          echo 1
+          msys2 -c "set | awk -f .ci/sd4/msvcenv.awk > .ci/sd4/msvcenv"
+          echo 2
+          type .ci/sd4/msvcenv
+
+          REM Bundle for consumers of setup-dkml.yml
+          tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/msvcenv
+
+      - name: Debug Visual Studio (Windows)
+        if: startsWith(matrix.dkml-host-abi, 'windows')
+        run: |
+          #!/bin/sh
+          set -eufx
+          file .ci/sd4/msvcenv.awk
+          cat .ci/sd4/msvcenv.awk
+          cat .ci/sd4/msvcenv
+
       - name: Use Visual Studio in dkml-* Opam packages (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
         run: |
@@ -831,13 +1005,13 @@ jobs:
           E_VS_MSVSPREFERENCE=$(escape_arg_as_ocaml_string "$VS_MSVSPREFERENCE")
           E_VS_CMAKEGENERATOR=$(escape_arg_as_ocaml_string "$VS_CMAKEGENERATOR")
 
-          case "$(.ci/sd4/env-opam opam --version)" in
+          case "$(opamrun --version)" in
             2.0.*)
               if [ "${{ matrix.in_docker }}" = "true" ]; then
                 echo Opam 2.0 support in dockcross to use a portable opam var prefix not yet implemented
                 exit 67
               fi
-              OP=$(.ci/sd4/env-opam opam var prefix)
+              OP=$(opamrun var prefix)
               OPSC=$OP/.opam-switch/switch-config
               if grep setenv: $OPSC; then
                 echo "INFO: Updating switch-config. Old was:"
@@ -859,35 +1033,37 @@ jobs:
               cat $OPSC >&2 # print
               ;;
             *)
-              .ci/sd4/env-opam opam option setenv= # reset
-              .ci/sd4/env-opam opam option setenv+='DKML_COMPILE_SPEC = "1"'
-              .ci/sd4/env-opam opam option setenv+='DKML_COMPILE_TYPE = "VS"'
-              .ci/sd4/env-opam opam option setenv+="DKML_COMPILE_VS_DIR = \"$E_VS_DIR\""
-              .ci/sd4/env-opam opam option setenv+="DKML_COMPILE_VS_VCVARSVER = \"$E_VS_VCVARSVER\""
-              .ci/sd4/env-opam opam option setenv+="DKML_COMPILE_VS_WINSDKVER = \"$E_VS_WINSDKVER\""
-              .ci/sd4/env-opam opam option setenv+="DKML_COMPILE_VS_MSVSPREFERENCE = \"$E_VS_MSVSPREFERENCE\""
-              .ci/sd4/env-opam opam option setenv+="DKML_COMPILE_VS_CMAKEGENERATOR = \"$E_VS_CMAKEGENERATOR\""
-              .ci/sd4/env-opam opam option setenv+="DKML_HOST_ABI = \"$M_DKMLHOSTABI\""
-              .ci/sd4/env-opam opam option setenv # print
+              opamrun option setenv= # reset
+              opamrun option setenv+='DKML_COMPILE_SPEC = "1"'
+              opamrun option setenv+='DKML_COMPILE_TYPE = "VS"'
+              opamrun option setenv+="DKML_COMPILE_VS_DIR = \"$E_VS_DIR\""
+              opamrun option setenv+="DKML_COMPILE_VS_VCVARSVER = \"$E_VS_VCVARSVER\""
+              opamrun option setenv+="DKML_COMPILE_VS_WINSDKVER = \"$E_VS_WINSDKVER\""
+              opamrun option setenv+="DKML_COMPILE_VS_MSVSPREFERENCE = \"$E_VS_MSVSPREFERENCE\""
+              opamrun option setenv+="DKML_COMPILE_VS_CMAKEGENERATOR = \"$E_VS_CMAKEGENERATOR\""
+              opamrun option setenv+="DKML_HOST_ABI = \"$M_DKMLHOSTABI\""
+              opamrun option setenv # print
               ;;
           esac
 
       - name: Capture Opam environment (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
         run: |
+          install -d .ci/sd4/dist
+          opamrun env > .ci/sd4/dist/opamenv
 
           # convert to DOS 'SET varname=varvalue' format if not already
-          .ci/sd4/env-opam opam env > .ci/sd4/opamenv
-          if grep -q '; export' .ci/sd4/opamenv; then
-            .ci/sd4/env-opam opam env | grep -v '^PATH=' | sed "s#; export.*##; s#'##g; s#^#SET #; s#\\\\\\\\#\\\\#g" > "$GITHUB_WORKSPACE"/.ci/sd4/opamenv
+          if grep -q '; export' .ci/sd4/dist/opamenv; then
+            opamrun env | grep -v '^PATH=' | sed "s#; export.*##; s#'##g; s#^#SET #; s#\\\\\\\\#\\\\#g" > .ci/sd4/dist/opamenv
           fi
-          cat "$GITHUB_WORKSPACE"/.ci/sd4/opamenv >&2
+          cat .ci/sd4/dist/opamenv >&2
 
       - name: Capture Opam environment (non-Windows)
         if: "!startsWith(matrix.dkml-host-abi, 'windows')"
         run: |
-          .ci/sd4/env-opam opam env > .ci/sd4/opamenv
-          cat .ci/sd4/opamenv >&2
+          install -d .ci/sd4/dist
+          opamrun env > .ci/sd4/dist/opamenv
+          cat .ci/sd4/dist/opamenv >&2
 
       # Setup OCaml compiler
 
@@ -914,19 +1090,6 @@ jobs:
           REM VsDevCmd.bat turns off echo; be explicit if we want it on or off
           @echo OFF
 
-          if "%SHOULD_POPULATE_CACHE%" == "true" (
-            if "%CAN_DOWNLOAD_ONLY%" == "true" (
-              set MOREARGS=--download-only
-              set ENVARGS=OPAMDOWNLOADJOBS=1
-            )
-          )
-          if "${{ matrix.bits }}" == "32" (
-            set M_DKMLOPTION_32BIT=dkml-option-32bit
-          )
-
-          REM Place Opam in PATH.
-          set PATH=%GITHUB_WORKSPACE%\.ci\sd4\bs\bin;%PATH%
-
           REM We must place MSYS2 in front of path so that MSYS2
           REM tar.exe is used instead of Windows tar.exe.
           REM But setup-msys2 puts MSYS2 in a temp directory when release=false.
@@ -936,6 +1099,12 @@ jobs:
           )
           set PATH=%MSYS2BIN%;%PATH%
 
+          REM Place Opam in PATH.
+          set PATH=%GITHUB_WORKSPACE%\.ci\sd4\bs\bin;%PATH%
+
+          if "${{ matrix.bits }}" == "32" (
+            set M_DKMLOPTION_32BIT=dkml-option-32bit
+          )
           if "%__INTERNAL__WIN32_BASH_HOOK%" == "true" (
             REM # for debugging
             env %ENVARGS% bash
@@ -948,7 +1117,7 @@ jobs:
           #!/bin/sh
           set -eufx
           if [ "${{ matrix.bits }}" = 32 ]; then M_DKMLOPTION_32BIT=dkml-option-32bit; else M_DKMLOPTION_32BIT=; fi
-          if ! .ci/sd4/env-opam opam upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain $M_DKMLOPTIONS $M_DKMLOPTION_32BIT; then
+          if ! opamrun upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain $M_DKMLOPTIONS $M_DKMLOPTION_32BIT; then
             printf "\n\n========= [START OF TROUBLESHOOTING] ===========\n\n" >&2
             find "$OPAMROOT"/log -mindepth 1 -maxdepth 1 -name "*.out" ! -name "log-*.out" ! -name "ocaml-variants-*.out" | while read -r dump_on_error_LOG; do
                 dump_on_error_BLOG=$(basename "$dump_on_error_LOG")
@@ -974,19 +1143,21 @@ jobs:
 
           tar cCfz .ci/sd4/g .ci/sd4/dist/sources.tar.gz .
 
-          install .ci/sd4/opamenv .ci/sd4/dist/opamenv
-
-          # Distribute whichever opam.exe we have been using
-          install -d .ci/sd4/d
-          printf "#!/bin/sh\ninstall -v %s .ci/sd4/d/opam%s\n" '$(command -v opam)' "${EXE_EXT}" > .ci/sd4/export-opam.sh
+          # Capture whichever opam.exe we have been using
+          install -d .ci/sd4/opamexe
+          printf "#!/bin/sh\ninstall -v %s .ci/sd4/opamexe/opam%s\n" '$(command -v opam)' "${EXE_EXT}" > .ci/sd4/export-opam.sh
           cat .ci/sd4/export-opam.sh >&2
           chmod +x .ci/sd4/export-opam.sh
           .ci/sd4/env-opam .ci/sd4/export-opam.sh
-          pwd_unix=$(pwd) # $GITHUB_WORKSPACE as a Unix path
-          if [ -d .ci/sd4/bs/bin/Opam.Runtime.amd64 ]; then # include DLLs from fdopen
-            cp -rp .ci/sd4/bs/bin/Opam.Runtime.amd64/ .ci/sd4/d/
+
+          # Update the tar ball with the opam executable, and possibly DLLs (especially from fdopen)
+          if [ -e .ci/sd4/bs/bin ]; then 
+            find .ci/sd4/bs/bin -mindepth 1 -maxdepth 1 -name "Opam.Runtime.*" | while read -r runtime; do
+              cp -rp $runtime .ci/sd4/opamexe/
+            done
           fi
-          tar cCfz .ci/sd4/d "$pwd_unix"/.ci/sd4/dist/opamexe.tar.gz .
+          pwd_unix=$(pwd) # $GITHUB_WORKSPACE as a Unix path
+          tar rvf "$pwd_unix"/.ci/sd4/dist/env-opam.tar .ci/sd4/opamexe/
 
       - name: Distribute Visual Studio environment (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
@@ -1001,10 +1172,10 @@ jobs:
           name: setup-dkml-${{ matrix.host_target_abis }}
           path: |
             .ci/sd4/dist/opamroot.tar.gz
-            .ci/sd4/dist/opamexe.tar.gz
             .ci/sd4/dist/sources.tar.gz
             .ci/sd4/dist/vsenv
             .ci/sd4/dist/opamenv
+            .ci/sd4/dist/env-opam.tar
 
       - name: Upload (non-Windows)
         uses: actions/upload-artifact@v3
@@ -1013,6 +1184,6 @@ jobs:
           name: setup-dkml-${{ matrix.host_target_abis }}
           path: |
             .ci/sd4/dist/opamroot.tar.gz
-            .ci/sd4/dist/opamexe.tar.gz
             .ci/sd4/dist/sources.tar.gz
             .ci/sd4/dist/opamenv
+            .ci/sd4/dist/env-opam.tar
