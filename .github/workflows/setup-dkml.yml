@@ -134,7 +134,7 @@ jobs:
             bits: "32"
             default_shell: msys2 {0}
             exe_ext: .exe
-            bootstrap-opam-version: "0.0.0"
+            bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
             # The 32-bit Opam binary has some problems with
             # `Unix.create_process` giving:
             #   "create_process" failed on sleep: Bad file descriptor
@@ -149,7 +149,7 @@ jobs:
             bits: "64"
             default_shell: msys2 {0}
             exe_ext: .exe
-            bootstrap-opam-version: "0.0.0"
+            bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
             opam-abi: windows_x86_64
             dkml-host-abi: windows_x86_64
             opam-root: D:/.opam
@@ -162,7 +162,7 @@ jobs:
           #   bits: "64"
           #   default_shell: msys2 {0}
           #   exe_ext: .exe
-          #   bootstrap-opam-version: "0.0.0"
+          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
           #   opam-abi: windows_x86_64
           #   dkml-host-abi: windows_x86_64
           #   opam-root: D:/.opam
@@ -186,7 +186,7 @@ jobs:
           #   bits: "64"
           #   default_shell: msys2 {0}
           #   exe_ext: .exe
-          #   bootstrap-opam-version: "0.0.0"
+          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
           #   opam-abi: windows_x86_64
           #   dkml-host-abi: windows_x86_64
           #   opam-root: D:/.opam
@@ -202,7 +202,7 @@ jobs:
             host_target_abis: macos-darwin_all
             bits: "64"
             default_shell: sh
-            bootstrap-opam-version: "os"
+            bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
             dkml-host-abi: darwin_x86_64
             opam-root: /Users/runner/.opam
 
@@ -245,7 +245,7 @@ jobs:
             bits: "32"
             comment: (CentOS 7, etc.)
             default_shell: sh
-            bootstrap-opam-version: "os"
+            bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
             dkml-host-abi: linux_x86
             opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
             in_docker: "true"
@@ -258,7 +258,7 @@ jobs:
           #   bits: "32"
           #   comment: (glibc>=2.24, Debian 9, etc.)
           #   default_shell: sh
-          #   bootstrap-opam-version: "os"
+          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
           #   dkml-host-abi: linux_x86
           #   opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
           #   docker_runner: docker run --platform linux/386 --rm -v $GITHUB_WORKSPACE:/work --workdir=/work quay.io/pypa/manylinux_2_24_i686 linux32
@@ -269,7 +269,7 @@ jobs:
             bits: "64"
             comment: (CentOS 7, etc.)
             default_shell: sh
-            bootstrap-opam-version: "os"
+            bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
             dkml-host-abi: linux_x86_64
             opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
             dockcross_image: dockcross/manylinux2014-x64
@@ -311,10 +311,6 @@ jobs:
       VS_HOST_ARCH: ${{ matrix.vsstudio-hostarch }}
 
       SHA512_DEVNULL: "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"
-
-      # Use an M_ prefix so don't interfere with any internal DKML use
-      M_DKMLOPTIONS: ${{ matrix.dkml-options }}
-      M_DKMLHOSTABI: ${{ matrix.dkml-host-abi }}
 
       # `>-` will flatten the multiple lines into a single line with no trailing EOL.
       # By design `populate-cache` is not part of the cache key
@@ -371,14 +367,16 @@ jobs:
           path: .ci/sd4/drd
           ref: 1bf73a207e054bd60b620c863a88d7c34a0efac6
 
-      #   Bootstrap from historical release
+      # Bootstrapping Opam
+
       - name: Cache Opam bootstrap by OS
-        if: matrix.bootstrap-opam-version != 'os'
         uses: actions/cache@v2
         with:
           path: .ci/sd4/bs
           key:
             ${{ inputs.cache-prefix }}_${{ runner.os }}-sd4-bs-${{ env.OPAM_BINARY_CACHE_KEY }}
+
+      #   Bootstrap from historical release
       - name: Bootstrap Opam from fdopen (Windows)
         if: inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')
         shell: msys2 {0}
@@ -403,21 +401,23 @@ jobs:
         if: "!(inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')) && matrix.bootstrap-opam-version != 'os'"
         env:
           VER: ${{ matrix.bootstrap-opam-version }}
-          ABI: ${{ matrix.opam-abi }}
+          ABI_DIR: ${{ matrix.host_target_abis }}/staging-files/${{ matrix.dkml-host-abi}}
         run: |
           #!/bin/sh
           set -eufx
           install -d .ci/sd4/bs
           cd .ci/sd4/bs
-          ABI=${ABI:-$M_DKMLHOSTABI} # default to the target abi
-          if [ ! -e "ocaml-$ABI-$VER.tar.gz" ]; then
-            curl -L -o ocaml-"$ABI-$VER".tmp.tar.gz "https://github.com/diskuv/dkml-installer-ocaml/releases/download/v$VER/ocaml-$ABI-$VER.tar.gz"
-            mv ocaml-"$ABI-$VER".tmp.tar.gz "ocaml-$ABI-$VER.tar.gz"
-            rm -f bin/opam bin/opam.exe
+
+          if [ ! -e version ] || [ "$(cat version)" != "$VER" ]; then
+            curl -L -o opam.tar.gz "https://github.com/diskuv/dkml-component-opam/releases/download/v$VER/dkml-component-staging-opam.tar.gz"
+            tar tvfz opam.tar.gz
+            tar xfz opam.tar.gz "./$ABI_DIR/"
+            rm -rf bin/
+            mv "$ABI_DIR"/bin .
+            rm -rf "${{ matrix.host_target_abis }}"
+            printf "%s" "$VER" > version
           fi
-          if [ ! -e bin/opam ] && [ ! -e bin/opam.exe ]; then
-            tar xfz "ocaml-$ABI-$VER.tar.gz" --strip-components=2
-          fi
+          rm -f opam.tar.gz
 
       #   Bootstrap from package manager or GitHub ocaml/opam release
       - name: Bootstrap Opam from package manager (macOS)
@@ -869,7 +869,6 @@ jobs:
       # repository up until 2.9.3. Need to upstream fix the problem.
       #
       # - ppx_expect; only patch is for v0.14.1. Need to upstream fix the problem.
-
       - name: Pins for packages in diskuv-opam-repository
         run: |
           opamrun pin add --yes --no-action -k version ocamlfind ${{ env.PIN_OCAMLFIND }}
@@ -880,11 +879,11 @@ jobs:
 
       # Setup C compiler
 
-      # - name: Cache Visual Studio environment variables by (host,target)
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: .ci/sd4/vsenv
-      #     key: ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-vsenv_1-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}
+      - name: Cache Visual Studio environment variables by (host,target)
+        uses: actions/cache@v2
+        with:
+          path: .ci/sd4/vsenv
+          key: ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-vsenv-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}-${{ matrix.vsstudio-dir }}
 
       - name: Diagnose Visual Studio environment variables (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
@@ -922,9 +921,6 @@ jobs:
             echo "VS_WINSDKVER=$($VisualStudioProps.WinSdkVer)" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
             echo "VS_MSVSPREFERENCE=$($VisualStudioProps.MsvsPreference)" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
             echo "VS_CMAKEGENERATOR=$($VisualStudioProps.CMakeGenerator)" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
-            # The following looks redundant, but caller workflows also need these env variables!
-            #echo "VS_ARCH=${env:VS_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
-            #echo "VS_HOST_ARCH=${env:VS_HOST_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           }
 
       - name: Link to hardcoded Visual Studio (Windows)
@@ -936,9 +932,6 @@ jobs:
           echo "VS_WINSDKVER=${{ matrix.vsstudio-winsdkver }}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           echo "VS_MSVSPREFERENCE=${{ matrix.vsstudio-msvspreference }}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           echo "VS_CMAKEGENERATOR=${{ matrix.vsstudio-cmakegenerator }}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
-          # The following looks redundant, but caller workflows also need these env variables!
-          #echo "VS_ARCH=${env:VS_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
-          #echo "VS_HOST_ARCH=${env:VS_HOST_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
 
       - name: Export Visual Studio location and type (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
@@ -1056,7 +1049,7 @@ jobs:
               echo "  [DKML_COMPILE_VS_WINSDKVER = \"$E_VS_WINSDKVER\"]" >> $OPSC
               echo "  [DKML_COMPILE_VS_MSVSPREFERENCE = \"$E_VS_MSVSPREFERENCE\"]" >> $OPSC
               echo "  [DKML_COMPILE_VS_CMAKEGENERATOR = \"$E_VS_CMAKEGENERATOR\"]" >> $OPSC
-              echo "  [DKML_HOST_ABI = \"$M_DKMLHOSTABI\"]" >> $OPSC
+              echo "  [DKML_HOST_ABI = \"${{ matrix.dkml-host-abi }}\"]" >> $OPSC
               echo ']' >> $OPSC
               cat $OPSC >&2 # print
               ;;
@@ -1069,75 +1062,10 @@ jobs:
               opamrun option setenv+="DKML_COMPILE_VS_WINSDKVER = \"$E_VS_WINSDKVER\""
               opamrun option setenv+="DKML_COMPILE_VS_MSVSPREFERENCE = \"$E_VS_MSVSPREFERENCE\""
               opamrun option setenv+="DKML_COMPILE_VS_CMAKEGENERATOR = \"$E_VS_CMAKEGENERATOR\""
-              opamrun option setenv+="DKML_HOST_ABI = \"$M_DKMLHOSTABI\""
+              opamrun option setenv+="DKML_HOST_ABI = \"${{ matrix.dkml-host-abi }}\""
               opamrun option setenv # print
               ;;
           esac
-
-      # - name: Capture Opam environment (Windows)
-      #   if: startsWith(matrix.dkml-host-abi, 'windows')
-      #   run: |
-      #     install -d .ci/sd4/dist
-      #     opamrun env > .ci/sd4/dist/opamenv
-
-      #     # convert to DOS 'SET varname=varvalue' format if not already
-      #     if grep -q '; export' .ci/sd4/dist/opamenv; then
-      #       opamrun env | grep -v '^PATH=' | sed "s#; export.*##; s#'##g; s#^#SET #; s#\\\\\\\\#\\\\#g" > .ci/sd4/dist/opamenv
-      #     fi
-      #     cat .ci/sd4/dist/opamenv >&2
-
-      # - name: Capture Opam environment (non-Windows)
-      #   if: "!startsWith(matrix.dkml-host-abi, 'windows')"
-      #   run: |
-      #     install -d .ci/sd4/dist
-      #     opamrun env > .ci/sd4/dist/opamenv
-      #     cat .ci/sd4/dist/opamenv >&2
-
-      # Setup OCaml compiler
-
-      # - name: Install OCaml compiler (Windows)
-      #   if: startsWith(matrix.dkml-host-abi, 'windows')
-      #   shell: cmd
-      #   run: |
-      #     @echo OFF
-
-      #     REM OCaml (dkml-base-compiler) will compile fine but any other
-      #     REM packages (ocamlbuild, etc.) which
-      #     REM need a native compiler will fail without the MSVC compiler in the
-      #     REM PATH. There isn't a `with-dkml.exe` alternative available at
-      #     REM this stage of the GitHub workflow.
-      #     call "%VS_DIR%\Common7\Tools\VsDevCmd.bat" -no_logo -host_arch=%VS_HOST_ARCH% -arch=%VS_ARCH% -vcvars_ver=%VS_VCVARSVER% -winsdk=%VS_WINSDKVER%
-      #     if %ERRORLEVEL% neq 0 (
-      #       echo.
-      #       echo.The "%VS_DIR%\Common7\Tools\VsDevCmd.bat" command failed
-      #       echo.with exit code %ERRORLEVEL%.
-      #       echo.
-      #       exit /b %ERRORLEVEL%
-      #     )
-
-      #     REM VsDevCmd.bat turns off echo; be explicit if we want it on or off
-      #     @echo OFF
-
-      #     REM We must place MSYS2 in front of path so that MSYS2
-      #     REM tar.exe is used instead of Windows tar.exe.
-      #     REM But setup-msys2 puts MSYS2 in a temp directory when release=false.
-      #     REM So we use setup-msys2's `msys2 -c` wrapper.
-      #     FOR /F "tokens=* usebackq" %%F IN (`msys2 -c "cygpath -aw /usr/bin"`) DO (
-      #       set "MSYS2BIN=%%F"
-      #     )
-      #     set PATH=%MSYS2BIN%;%PATH%
-
-      #     REM Place Opam in PATH.
-      #     set PATH=%GITHUB_WORKSPACE%\.ci\sd4\bs\bin;%PATH%
-
-      #     if "${{ matrix.bits }}" == "32" (
-      #       set M_DKMLOPTION_32BIT=dkml-option-32bit
-      #     )
-      #     if "%__INTERNAL__WIN32_BASH_HOOK%" == "true" (
-      #       REM # for debugging
-      #       env %ENVARGS% bash
-      #     )
-      #     env %ENVARGS% opam upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain %M_DKMLOPTIONS% %M_DKMLOPTION_32BIT% %MOREARGS%
 
       - name: Install OCaml compiler
         run: |
@@ -1148,7 +1076,7 @@ jobs:
           else
             M_DKMLOPTION_32BIT=
           fi
-          if ! opamrun upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain $M_DKMLOPTIONS $M_DKMLOPTION_32BIT; then
+          if ! opamrun upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain ${{ matrix.dkml-options }} $M_DKMLOPTION_32BIT; then
             printf "\n\n========= [START OF TROUBLESHOOTING] ===========\n\n" >&2
             find "$OPAMROOT"/log -mindepth 1 -maxdepth 1 -name "*.out" ! -name "log-*.out" ! -name "ocaml-variants-*.out" | while read -r dump_on_error_LOG; do
                 dump_on_error_BLOG=$(basename "$dump_on_error_LOG")
@@ -1190,26 +1118,10 @@ jobs:
             tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/msvcenv
           fi
 
-      # - name: Distribute Visual Studio environment (Windows)
-      #   if: startsWith(matrix.dkml-host-abi, 'windows')
-      #   run: install .ci/sd4/vsenv .ci/sd4/dist/vsenv
-
       # Upload
-
-      # - name: Upload (Windows)
-      #   uses: actions/upload-artifact@v3
-      #   if: startsWith(matrix.dkml-host-abi, 'windows')
-      #   with:
-      #     name: setup-dkml-${{ matrix.host_target_abis }}
-      #     path: |
-      #       .ci/sd4/dist/opamroot.tar.gz
-      #       .ci/sd4/dist/sources.tar.gz
-      #       .ci/sd4/dist/vsenv
-      #       .ci/sd4/dist/env-opam.tar
 
       - name: Upload
         uses: actions/upload-artifact@v3
-        # if: "!startsWith(matrix.dkml-host-abi, 'windows')"
         with:
           name: setup-dkml-${{ matrix.host_target_abis }}
           path: |
