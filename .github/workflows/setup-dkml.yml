@@ -51,9 +51,9 @@ on:
           }
 
     inputs:
-      use-fdopen-opam:
+      fdopen-opamexe-bootstrap:
         type: boolean
-        description: "Use opam.exe from fdopen. Typically only used when bootstrapping Opam for the first time"
+        description: "Use opam.exe from fdopen on Windows. Typically only used when bootstrapping Opam for the first time. May be needed to solve '\"create_process\" failed on sleep: Bad file descriptor' which may need https://github.com/ocaml/opam/commit/417b97d8cfada35682a0f4107eb2e4f9e24fba91"
         required: false
         default: false
       cache-prefix:
@@ -289,7 +289,7 @@ jobs:
       # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root
       OPAM_BINARY_CACHE_KEY: r1_${{
-        inputs.use-fdopen-opam }}_${{
+        inputs.fdopen-opamexe-bootstrap }}_${{
         matrix.dkml-host-abi }}_${{
         matrix.opam-abi }}_${{
         matrix.bootstrap-opam-version }}
@@ -378,7 +378,7 @@ jobs:
 
       #   Bootstrap from historical release
       - name: Bootstrap Opam from fdopen (Windows)
-        if: inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')
+        if: inputs.fdopen-opamexe-bootstrap && startsWith(matrix.dkml-host-abi, 'windows')
         shell: msys2 {0}
         run: |
           #!/bin/sh
@@ -398,7 +398,7 @@ jobs:
           ldd "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/opam.exe
           ldd "$GITHUB_WORKSPACE"/.ci/sd4/bs/bin/opam-installer.exe
       - name: Bootstrap Opam from historical release (non-Windows; Windows non-fdopen)
-        if: "!(inputs.use-fdopen-opam && startsWith(matrix.dkml-host-abi, 'windows')) && matrix.bootstrap-opam-version != 'os'"
+        if: "!(inputs.fdopen-opamexe-bootstrap && startsWith(matrix.dkml-host-abi, 'windows')) && matrix.bootstrap-opam-version != 'os'"
         env:
           VER: ${{ matrix.bootstrap-opam-version }}
           ABI_DIR: ${{ matrix.host_target_abis }}/staging-files/${{ matrix.dkml-host-abi}}
