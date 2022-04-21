@@ -11,7 +11,7 @@ env:
 on:
   workflow_call:
     outputs:
-      import_func: 
+      import_func:
         description: |
           A shell script that can be eval'd or executed inline in a POSIX shell, that defines
           a shell function 'import'. When 'import HOST_TARGET_ABIS' is called a `opamrun`
@@ -45,9 +45,9 @@ on:
             fi
 
             # Expose Visual Studio environment variables
-            if [ -e .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/vsenv ]; then
-              cat .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/vsenv >> $GITHUB_ENV
-            fi
+            #if [ -e .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/vsenv ]; then
+            #  cat .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/vsenv >> $GITHUB_ENV
+            #fi
           }
 
     inputs:
@@ -635,7 +635,29 @@ jobs:
           install -d .ci/sd4/opamrun
           cat > .ci/sd4/opamrun/opamrun <<EOF
           #!/bin/sh
-          set -euf
+          set -eufx
+
+          # Add MSVC compiler environment if available
+          if [ -e "\$GITHUB_WORKSPACE"/.ci/sd4/msvcenv ]; then
+            _oldpath="\$PATH"
+            . "\$GITHUB_WORKSPACE"/.ci/sd4/msvcenv
+            PATH="\$PATH:\$_oldpath"
+
+            # MSVC (link.exe) needs a TMP as well.
+            # Confer: https://docs.microsoft.com/en-us/cpp/build/reference/linking?view=msvc-170#link-environment-variables
+            export TMP="\$RUNNER_TEMP"
+            if [ -x /usr/bin/cygpath ]; then
+              TMP=\$(/usr/bin/cygpath -aw "\$TMP")
+            fi
+          fi
+
+          # Windows
+          if [ -n "${COMSPEC:-}" ]; then
+            # We must place MSYS2 in front of path so that MSYS2
+            # tar.exe is used instead of Windows tar.exe.
+            PATH="/usr/bin:\$PATH"
+          fi
+
           exec "\$GITHUB_WORKSPACE/.ci/sd4/env-opam" opam "\$@"
           EOF
           chmod +x .ci/sd4/opamrun/opamrun
@@ -858,11 +880,11 @@ jobs:
 
       # Setup C compiler
 
-      - name: Cache Visual Studio environment variables by (host,target)
-        uses: actions/cache@v2
-        with:
-          path: .ci/sd4/vsenv
-          key: ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-vsenv_1-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}
+      # - name: Cache Visual Studio environment variables by (host,target)
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: .ci/sd4/vsenv
+      #     key: ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-vsenv_1-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}
 
       - name: Diagnose Visual Studio environment variables (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
@@ -881,7 +903,7 @@ jobs:
           $allinstances = Get-VSSetupInstance
           $allinstances | ConvertTo-Json -Depth 5
 
-      - name: Query Visual Studio environment variables (Windows)
+      - name: Locate Visual Studio (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows') && matrix.vsstudio-dir == ''
         shell: pwsh
         run: |
@@ -901,11 +923,11 @@ jobs:
             echo "VS_MSVSPREFERENCE=$($VisualStudioProps.MsvsPreference)" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
             echo "VS_CMAKEGENERATOR=$($VisualStudioProps.CMakeGenerator)" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
             # The following looks redundant, but caller workflows also need these env variables!
-            echo "VS_ARCH=${env:VS_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
-            echo "VS_HOST_ARCH=${env:VS_HOST_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+            #echo "VS_ARCH=${env:VS_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+            #echo "VS_HOST_ARCH=${env:VS_HOST_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           }
 
-      - name: Save Visual Studio environment variables (Windows)
+      - name: Link to hardcoded Visual Studio (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows') && matrix.vsstudio-dir != ''
         shell: pwsh
         run: |
@@ -915,10 +937,10 @@ jobs:
           echo "VS_MSVSPREFERENCE=${{ matrix.vsstudio-msvspreference }}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           echo "VS_CMAKEGENERATOR=${{ matrix.vsstudio-cmakegenerator }}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
           # The following looks redundant, but caller workflows also need these env variables!
-          echo "VS_ARCH=${env:VS_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
-          echo "VS_HOST_ARCH=${env:VS_HOST_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+          #echo "VS_ARCH=${env:VS_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
+          #echo "VS_HOST_ARCH=${env:VS_HOST_ARCH}" >> ${env:GITHUB_WORKSPACE}/.ci/sd4/vsenv
 
-      - name: Export Visual Studio environment variables (Windows)
+      - name: Export Visual Studio location and type (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
         shell: pwsh
         run: |
@@ -934,11 +956,17 @@ jobs:
           # 2. https://docs.microsoft.com/en-us/cpp/build/reference/linking?view=msvc-170#link-environment-variables (except TMP)
           $awk = @"
           BEGIN{FS="="}
-          `$1=="CL"||`$1=="_CL_"||`$1=="INCLUDE"||`$1=="LIBPATH" {print}
-          `$1=="LINK"||`$1=="_LINK_"||`$1=="LIB"||`$1=="PATH" {print}
+          `$1=="CL"||`$1=="_CL_"||`$1=="INCLUDE"||`$1=="LIBPATH" {print "export " `$0}
+          `$1=="LINK"||`$1=="_LINK_"||`$1=="LIB"||`$1=="PATH"    {print "export " `$0}
           "@
           [IO.File]::WriteAllLines(".ci/sd4/msvcenv.awk", $awk)
-      - name: Capture Visual Studio compiler environment (Windows)
+
+          $awk = @"
+          {print "export PATH='" `$0 "'"}
+          "@
+          [IO.File]::WriteAllLines(".ci/sd4/msvcpath.awk", $awk)
+
+      - name: Capture Visual Studio compiler environment (1/2) (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
         shell: cmd
         run: |
@@ -961,32 +989,32 @@ jobs:
           REM VsDevCmd.bat turns off echo; be explicit if we want it on or off
           @echo OFF
 
-          REM We must place MSYS2 in front of path so that MSYS2
-          REM tar.exe is used instead of Windows tar.exe.
-          REM But setup-msys2 puts MSYS2 in a temp directory when release=false.
-          REM So we use setup-msys2's `msys2 -c` wrapper.
-          REM FOR /F "tokens=* usebackq" %%F IN (`msys2 -c "cygpath -aw /usr/bin"`) DO (
-          REM   set "MSYS2BIN=%%F"
-          REM )
-          REM set PATH=%MSYS2BIN%;%PATH%
+          REM ~~We must place MSYS2 in front of path so that MSYS2
+          REM ~~tar.exe is used instead of Windows tar.exe.
+          REM ~~But setup-msys2 puts MSYS2 in a temp directory when release=false.
+          REM ~~So we use setup-msys2's `msys2 -c` wrapper.
+          REM ~~FOR /F "tokens=* usebackq" %%F IN (`msys2 -c "cygpath -aw /usr/bin"`) DO (
+          REM ~~  set "MSYS2BIN=%%F"
+          REM ~~)
+          REM ~~set PATH=%MSYS2BIN%;%PATH%
 
-          REM MSVC environment variables in Unix format, so use msys2 to do that.
-          echo 1
-          msys2 -c "set | awk -f .ci/sd4/msvcenv.awk > .ci/sd4/msvcenv"
-          echo 2
-          type .ci/sd4/msvcenv
+          REM MSVC environment variables in Unix format.
+          REM * We can't use `msys2 -c` directly to query for all MSVC environment variables
+          REM   because it stomps over the PATH. So we have a separate solution for PATH.
+          echo %PATH% > .ci\sd4\msvcpath
+          msys2 -c "set | grep -v '^PATH=' | awk -f .ci/sd4/msvcenv.awk > .ci/sd4/msvcenv"
 
-          REM Bundle for consumers of setup-dkml.yml
-          tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/msvcenv
+          REM (For some reason no shell commands can happen after the last msys2 -c, so split into 2 GitHub Actions steps!)
 
-      - name: Debug Visual Studio (Windows)
+      - name: Capture Visual Studio compiler environment (2/2) (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
         run: |
           #!/bin/sh
-          set -eufx
-          file .ci/sd4/msvcenv.awk
-          cat .ci/sd4/msvcenv.awk
-          cat .ci/sd4/msvcenv
+          set -euf
+          cat .ci/sd4/msvcpath | tr -d '\r' | cygpath --path -f - | awk -f .ci/sd4/msvcpath.awk >> .ci/sd4/msvcenv
+
+          tail -n100 .ci/sd4/msvcpath .ci/sd4/msvcenv >&2
+
 
       - name: Use Visual Studio in dkml-* Opam packages (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
@@ -1046,77 +1074,80 @@ jobs:
               ;;
           esac
 
-      - name: Capture Opam environment (Windows)
-        if: startsWith(matrix.dkml-host-abi, 'windows')
-        run: |
-          install -d .ci/sd4/dist
-          opamrun env > .ci/sd4/dist/opamenv
+      # - name: Capture Opam environment (Windows)
+      #   if: startsWith(matrix.dkml-host-abi, 'windows')
+      #   run: |
+      #     install -d .ci/sd4/dist
+      #     opamrun env > .ci/sd4/dist/opamenv
 
-          # convert to DOS 'SET varname=varvalue' format if not already
-          if grep -q '; export' .ci/sd4/dist/opamenv; then
-            opamrun env | grep -v '^PATH=' | sed "s#; export.*##; s#'##g; s#^#SET #; s#\\\\\\\\#\\\\#g" > .ci/sd4/dist/opamenv
-          fi
-          cat .ci/sd4/dist/opamenv >&2
+      #     # convert to DOS 'SET varname=varvalue' format if not already
+      #     if grep -q '; export' .ci/sd4/dist/opamenv; then
+      #       opamrun env | grep -v '^PATH=' | sed "s#; export.*##; s#'##g; s#^#SET #; s#\\\\\\\\#\\\\#g" > .ci/sd4/dist/opamenv
+      #     fi
+      #     cat .ci/sd4/dist/opamenv >&2
 
-      - name: Capture Opam environment (non-Windows)
-        if: "!startsWith(matrix.dkml-host-abi, 'windows')"
-        run: |
-          install -d .ci/sd4/dist
-          opamrun env > .ci/sd4/dist/opamenv
-          cat .ci/sd4/dist/opamenv >&2
+      # - name: Capture Opam environment (non-Windows)
+      #   if: "!startsWith(matrix.dkml-host-abi, 'windows')"
+      #   run: |
+      #     install -d .ci/sd4/dist
+      #     opamrun env > .ci/sd4/dist/opamenv
+      #     cat .ci/sd4/dist/opamenv >&2
 
       # Setup OCaml compiler
 
-      - name: Install OCaml compiler (Windows)
-        if: startsWith(matrix.dkml-host-abi, 'windows')
-        shell: cmd
-        run: |
-          @echo OFF
+      # - name: Install OCaml compiler (Windows)
+      #   if: startsWith(matrix.dkml-host-abi, 'windows')
+      #   shell: cmd
+      #   run: |
+      #     @echo OFF
 
-          REM OCaml (dkml-base-compiler) will compile fine but any other
-          REM packages (ocamlbuild, etc.) which
-          REM need a native compiler will fail without the MSVC compiler in the
-          REM PATH. There isn't a `with-dkml.exe` alternative available at
-          REM this stage of the GitHub workflow.
-          call "%VS_DIR%\Common7\Tools\VsDevCmd.bat" -no_logo -host_arch=%VS_HOST_ARCH% -arch=%VS_ARCH% -vcvars_ver=%VS_VCVARSVER% -winsdk=%VS_WINSDKVER%
-          if %ERRORLEVEL% neq 0 (
-            echo.
-            echo.The "%VS_DIR%\Common7\Tools\VsDevCmd.bat" command failed
-            echo.with exit code %ERRORLEVEL%.
-            echo.
-            exit /b %ERRORLEVEL%
-          )
+      #     REM OCaml (dkml-base-compiler) will compile fine but any other
+      #     REM packages (ocamlbuild, etc.) which
+      #     REM need a native compiler will fail without the MSVC compiler in the
+      #     REM PATH. There isn't a `with-dkml.exe` alternative available at
+      #     REM this stage of the GitHub workflow.
+      #     call "%VS_DIR%\Common7\Tools\VsDevCmd.bat" -no_logo -host_arch=%VS_HOST_ARCH% -arch=%VS_ARCH% -vcvars_ver=%VS_VCVARSVER% -winsdk=%VS_WINSDKVER%
+      #     if %ERRORLEVEL% neq 0 (
+      #       echo.
+      #       echo.The "%VS_DIR%\Common7\Tools\VsDevCmd.bat" command failed
+      #       echo.with exit code %ERRORLEVEL%.
+      #       echo.
+      #       exit /b %ERRORLEVEL%
+      #     )
 
-          REM VsDevCmd.bat turns off echo; be explicit if we want it on or off
-          @echo OFF
+      #     REM VsDevCmd.bat turns off echo; be explicit if we want it on or off
+      #     @echo OFF
 
-          REM We must place MSYS2 in front of path so that MSYS2
-          REM tar.exe is used instead of Windows tar.exe.
-          REM But setup-msys2 puts MSYS2 in a temp directory when release=false.
-          REM So we use setup-msys2's `msys2 -c` wrapper.
-          FOR /F "tokens=* usebackq" %%F IN (`msys2 -c "cygpath -aw /usr/bin"`) DO (
-            set "MSYS2BIN=%%F"
-          )
-          set PATH=%MSYS2BIN%;%PATH%
+      #     REM We must place MSYS2 in front of path so that MSYS2
+      #     REM tar.exe is used instead of Windows tar.exe.
+      #     REM But setup-msys2 puts MSYS2 in a temp directory when release=false.
+      #     REM So we use setup-msys2's `msys2 -c` wrapper.
+      #     FOR /F "tokens=* usebackq" %%F IN (`msys2 -c "cygpath -aw /usr/bin"`) DO (
+      #       set "MSYS2BIN=%%F"
+      #     )
+      #     set PATH=%MSYS2BIN%;%PATH%
 
-          REM Place Opam in PATH.
-          set PATH=%GITHUB_WORKSPACE%\.ci\sd4\bs\bin;%PATH%
+      #     REM Place Opam in PATH.
+      #     set PATH=%GITHUB_WORKSPACE%\.ci\sd4\bs\bin;%PATH%
 
-          if "${{ matrix.bits }}" == "32" (
-            set M_DKMLOPTION_32BIT=dkml-option-32bit
-          )
-          if "%__INTERNAL__WIN32_BASH_HOOK%" == "true" (
-            REM # for debugging
-            env %ENVARGS% bash
-          )
-          env %ENVARGS% opam upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain %M_DKMLOPTIONS% %M_DKMLOPTION_32BIT% %MOREARGS%
+      #     if "${{ matrix.bits }}" == "32" (
+      #       set M_DKMLOPTION_32BIT=dkml-option-32bit
+      #     )
+      #     if "%__INTERNAL__WIN32_BASH_HOOK%" == "true" (
+      #       REM # for debugging
+      #       env %ENVARGS% bash
+      #     )
+      #     env %ENVARGS% opam upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain %M_DKMLOPTIONS% %M_DKMLOPTION_32BIT% %MOREARGS%
 
-      - name: Install OCaml compiler (non-Windows)
-        if: "!startsWith(matrix.dkml-host-abi, 'windows')"
+      - name: Install OCaml compiler
         run: |
           #!/bin/sh
           set -eufx
-          if [ "${{ matrix.bits }}" = 32 ]; then M_DKMLOPTION_32BIT=dkml-option-32bit; else M_DKMLOPTION_32BIT=; fi
+          if [ "${{ matrix.bits }}" = 32 ]; then
+            M_DKMLOPTION_32BIT=dkml-option-32bit
+          else
+            M_DKMLOPTION_32BIT=
+          fi
           if ! opamrun upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain $M_DKMLOPTIONS $M_DKMLOPTION_32BIT; then
             printf "\n\n========= [START OF TROUBLESHOOTING] ===========\n\n" >&2
             find "$OPAMROOT"/log -mindepth 1 -maxdepth 1 -name "*.out" ! -name "log-*.out" ! -name "ocaml-variants-*.out" | while read -r dump_on_error_LOG; do
@@ -1130,14 +1161,10 @@ jobs:
 
       # Bundle
 
-      - name: Distribute source code, Opam executable, Opam root
+      - name: Distribute source code, Opam environment, and Opam root
         run: |
           #!/bin/sh
           set -eufx
-
-          # Place Opam, if not bootstrapped by a package manager, at start of PATH
-
-          install -d .ci/sd4/dist
 
           tar cCfz $OPAMROOT .ci/sd4/dist/opamroot.tar.gz --exclude ./dkml/.opam-switch/build --exclude ./log .
 
@@ -1151,39 +1178,41 @@ jobs:
           .ci/sd4/env-opam .ci/sd4/export-opam.sh
 
           # Update the tar ball with the opam executable, and possibly DLLs (especially from fdopen)
-          if [ -e .ci/sd4/bs/bin ]; then 
+          if [ -e .ci/sd4/bs/bin ]; then
             find .ci/sd4/bs/bin -mindepth 1 -maxdepth 1 -name "Opam.Runtime.*" | while read -r runtime; do
               cp -rp $runtime .ci/sd4/opamexe/
             done
           fi
-          pwd_unix=$(pwd) # $GITHUB_WORKSPACE as a Unix path
-          tar rvf "$pwd_unix"/.ci/sd4/dist/env-opam.tar .ci/sd4/opamexe/
+          tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/opamexe/
 
-      - name: Distribute Visual Studio environment (Windows)
-        if: startsWith(matrix.dkml-host-abi, 'windows')
-        run: install .ci/sd4/vsenv .ci/sd4/dist/vsenv
+          # Update tar ball with MSVC environment
+          if [ -e .ci/sd4/msvcenv ]; then
+            tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/msvcenv
+          fi
+
+      # - name: Distribute Visual Studio environment (Windows)
+      #   if: startsWith(matrix.dkml-host-abi, 'windows')
+      #   run: install .ci/sd4/vsenv .ci/sd4/dist/vsenv
 
       # Upload
 
-      - name: Upload (Windows)
-        uses: actions/upload-artifact@v3
-        if: startsWith(matrix.dkml-host-abi, 'windows')
-        with:
-          name: setup-dkml-${{ matrix.host_target_abis }}
-          path: |
-            .ci/sd4/dist/opamroot.tar.gz
-            .ci/sd4/dist/sources.tar.gz
-            .ci/sd4/dist/vsenv
-            .ci/sd4/dist/opamenv
-            .ci/sd4/dist/env-opam.tar
+      # - name: Upload (Windows)
+      #   uses: actions/upload-artifact@v3
+      #   if: startsWith(matrix.dkml-host-abi, 'windows')
+      #   with:
+      #     name: setup-dkml-${{ matrix.host_target_abis }}
+      #     path: |
+      #       .ci/sd4/dist/opamroot.tar.gz
+      #       .ci/sd4/dist/sources.tar.gz
+      #       .ci/sd4/dist/vsenv
+      #       .ci/sd4/dist/env-opam.tar
 
-      - name: Upload (non-Windows)
+      - name: Upload
         uses: actions/upload-artifact@v3
-        if: "!startsWith(matrix.dkml-host-abi, 'windows')"
+        # if: "!startsWith(matrix.dkml-host-abi, 'windows')"
         with:
           name: setup-dkml-${{ matrix.host_target_abis }}
           path: |
             .ci/sd4/dist/opamroot.tar.gz
             .ci/sd4/dist/sources.tar.gz
-            .ci/sd4/dist/opamenv
             .ci/sd4/dist/env-opam.tar

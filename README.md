@@ -6,7 +6,7 @@ A set of GitHub Action workflows for use with Diskuv OCaml (DKML) tooling.
 
 The following OCaml build environments will be setup for you:
 
-| Name                       | Native `ocamlopt` compiler supports the following operating systems:                                                                 |
+| ABIs                       | Native `ocamlopt` compiler supports the following operating systems:                                                                 |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | win32-windows_x86          | 32-bit Windows for Intel/AMD CPUs                                                                                                    |
 | win32-windows_x86_64       | 64-bit Windows for Intel/AMD CPUs                                                                                                    |
@@ -14,14 +14,14 @@ The following OCaml build environments will be setup for you:
 | manylinux2014-linux_x86    | 32-bit Linux: CentOS 7, CentOS 8, Fedora 32+, Mageia 8+, openSUSE 15.3+, Photon OS 4.0+ (3.0+ with updates), Ubuntu 20.04+           |
 | manylinux2014-linux_x86_64 | 64-bit Linux: CentOS 7, CentOS 8, Fedora 32+, Mageia 8+, openSUSE 15.3+, Photon OS 4.0+ (3.0+ with updates), Ubuntu 20.04+           |
 
-> Cross-compiling typically requires that you use Dune for all of your OCaml packages.
-> You can use [opam monorepo](https://github.com/ocamllabs/opam-monorepo#readme) as your build tool for your OCaml executable.
+> Cross-compiling typically requires that you use Dune to build all your OCaml package dependencies.
+> [opam monorepo](https://github.com/ocamllabs/opam-monorepo#readme) makes it easy to do exactly that.
 > Alternatively you can directly use [findlib toolchains](http://projects.camlcity.org/projects/dl/findlib-1.9.3/doc/ref-html/r865.html).
 
 You will need three sections in your GitHub Actions `.yml` file to build your executables:
 
 1. A `setup-dkml` workflow to create the above build environments
-2. A "matrix build" workflow to build your OCaml native executables
+2. A "matrix build" workflow to build your OCaml native executables on each
 3. A "release" workflow to assemble all of your native executables into a single release
 
 ### `setup-dkml` workflow
@@ -34,11 +34,12 @@ jobs:
     uses: 'diskuv/dkml-workflows/.github/workflows/setup-dkml.yml@v0'
 ```
 
-The `setup-dkml` will expose artifacts that you can use in your workflow.
-
 ### matrix build workflow
 
 ```yaml
+jobs:
+  setup-dkml:
+    # ...
   build:
     # Wait until `setup-dkml` is finished
     needs: setup-dkml
@@ -83,8 +84,7 @@ The `setup-dkml` will expose artifacts that you can use in your workflow.
       - name: Checkout
         uses: actions/checkout@v2
 
-      # MSYS2 provides the Unix shell for Windows
-      - name: Install MSYS2 (Windows)
+      - name: Install MSYS2 to provide Unix shell (Windows only)
         if: startsWith(matrix.dkml-host-abi, 'windows')
         uses: msys2/setup-msys2@v2
         with:
@@ -103,26 +103,32 @@ The `setup-dkml` will expose artifacts that you can use in your workflow.
             xz
             tar
 
-      # Download all of `setup-dkml`'s artifacts
-      - uses: actions/download-artifact@v3
+      - name: Download setup-dkml artifacts
+        uses: actions/download-artifact@v3
         with:
           path: .ci/dist
 
       - name: Import build environments from setup-dkml
-        run: ${{ needs.setup-dkml.outputs.import_func }} import ${{ matrix.abi }}
+        run: |
+          ${{ needs.setup-dkml.outputs.import_func }}
+          import ${{ matrix.host_target_abis }}
 
-      - name: Test opamrun (REMOVEME)
+      - name: Use opamrun to build your executable
         run: |
           #!/bin/sh
           set -eufx
-          which opamrun >&2
-          opamrun --version >&2
-          opamrun exec -- env >&2
+          opamrun install . --with-test --deps-only
+          opamrun exec -- dune build @install
 ```
 
 ### release workflow
 
 ```yaml
+jobs:
+  setup-dkml:
+    # ...
+  build:
+    # ...
   release:
     runs-on: ubuntu-latest
     # Wait until `build` complete
@@ -141,7 +147,7 @@ The `setup-dkml` will expose artifacts that you can use in your workflow.
         run: ls -R
         working-directory: dist
 
-      - name: Release
+      - name: Release (only when Git tag pushed)
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
