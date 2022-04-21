@@ -32,7 +32,11 @@ Add the `setup-dkml` child workflow to your own GitHub Actions `.yml` file:
 jobs:
   setup-dkml:
     uses: 'diskuv/dkml-workflows/.github/workflows/setup-dkml.yml@v0'
+    with:
+      ocaml-compiler: 4.12.1
 ```
+
+Only OCaml `4.12.1` is supported today.
 
 ### matrix build workflow
 
@@ -112,6 +116,12 @@ jobs:
         run: |
           ${{ needs.setup-dkml.outputs.import_func }}
           import ${{ matrix.host_target_abis }}
+
+      - name: Cache Opam downloads by host
+        uses: actions/cache@v2
+        with:
+          path: ${{ matrix.opam-root }}/download-cache
+          key: ${{ matrix.dkml-host-abi }}
 
       - name: Use opamrun to build your executable
         run: |

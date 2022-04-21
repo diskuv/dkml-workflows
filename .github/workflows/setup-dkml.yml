@@ -61,6 +61,9 @@ on:
         description: The prefix of the cache keys.
         required: false
         default: "v1"
+      ocaml-compiler:
+        type: string
+        description: "The version of the OCaml compiler, as tagged by the https://github.com/diskuv/dkml-base-compiler repository. If not specified the latest compiler, or the version associated with the 'dkml-compiler' input, is used. Currently only 4.12.1 is supported"
       ocaml:
         type: string
         description: "Git branch, tag or commit for ocaml package in the dkml-compiler repository"
@@ -73,7 +76,7 @@ on:
         default: "" # Change this to "@repository@" once published to Opam
       dkml-compiler:
         type: string
-        description: "Git branch, tag or commit for ocaml, ocaml-config, dkml-base-compiler and dkml-option-32bit"
+        description: "Git branch, tag or commit for ocaml, ocaml-config, dkml-base-compiler and dkml-option-32bit. However if ocaml-compiler is specified the dkml-base-compiler version is taken from ocaml-compiler."
         required: false
         default: "" # Change this to "@repository@" once published to Opam
       conf-dkml-cross-toolchain:
@@ -289,6 +292,7 @@ jobs:
       # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root
       OPAM_BINARY_CACHE_KEY: r1_${{
+        inputs.ocaml-compiler }}_${{
         inputs.fdopen-opamexe-bootstrap }}_${{
         matrix.dkml-host-abi }}_${{
         matrix.opam-abi }}_${{
@@ -772,16 +776,35 @@ jobs:
 
       # dkml-base-compiler
 
-      - name: Checkout dkml-base-compiler
-        if: env.DKML_BASE_COMPILER != '@repository@'
+      - name: Checkout dkml-base-compiler (dkml-base-compiler specified; no ocaml-compiler specified)
+        if: env.DKML_BASE_COMPILER != '@repository@' && inputs.ocaml-compiler == ''
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-compiler
           path: .ci/sd4/g/dkml-base-compiler
           ref: ${{ env.DKML_BASE_COMPILER }} # empty is no `ref`, which is default branch
 
-      - name: Pin dkml-base-compiler to checkout instead of Opam repository
-        if: env.DKML_BASE_COMPILER != '@repository@'
+      - name: Validate ocaml-compiler (ocaml-compiler specified)
+        if: inputs.ocaml-compiler != ''
+        run: |
+          case "${{ inputs.ocaml-compiler }}" in
+            4.12.1) true ;;
+            *)
+              echo "ocaml-compiler version ${{ inputs.ocaml-compiler }} is not supported" >&2
+              exit 109
+              ;;
+          esac
+
+      - name: Checkout dkml-base-compiler (ocaml-compiler specified)
+        if: inputs.ocaml-compiler != ''
+        uses: actions/checkout@v2
+        with:
+          repository: diskuv/dkml-compiler
+          path: .ci/sd4/g/dkml-base-compiler
+          ref: v${{ inputs.ocaml-compiler }}
+
+      - name: Pin dkml-base-compiler to checkout instead of Opam repository (ocaml-compiler or dkml-base-compiler specified)
+        if: env.DKML_BASE_COMPILER != '@repository@' || inputs.ocaml-compiler != ''
         run: opamrun pin add --yes --no-action dkml-base-compiler .ci/sd4/g/dkml-base-compiler
 
       # conf-dkml-cross-toolchain
@@ -808,9 +831,9 @@ jobs:
           path: .ci/sd4/g/ocaml
           ref: ${{ env.INPUT_OCAML }} # empty is no `ref`, which is default branch
 
-      - name: Pin ocaml.4.12.1 to checkout instead of Opam repository
+      - name: Pin ocaml.${{ inputs.ocaml-compiler }} to checkout instead of Opam repository
         if: env.INPUT_OCAML != '@repository@'
-        run: opamrun pin add --yes --no-action ocaml.4.12.1 .ci/sd4/g/ocaml
+        run: opamrun pin add --yes --no-action ocaml.${{ inputs.ocaml-compiler }} .ci/sd4/g/ocaml
 
       # ocaml-config
 
