@@ -1,10 +1,25 @@
 # dkml-workflows
 
-A set of GitHub Action workflows for use with Diskuv OCaml (DKML) tooling.
+GitHub Action workflows used by and with Diskuv OCaml (DKML) tooling. DKML helps you
+distribute native OCaml applications on the most common operating systems.
 
-## Auto-generating GitHub releases for OCaml native executables
+## setup-dkml: Auto-generating GitHub releases for OCaml native executables
 
-The following OCaml build environments will be setup for you:
+With setup-dkml you can build and automatically create releases of OCaml native executables.
+In contrast to the conventional [setup-ocaml](https://github.com/marketplace/actions/set-up-ocaml) GitHub Action:
+
+| `setup-dkml`                         | `setup-ocaml`       | Consequence                                                                                                                                                                                                                                                                                                |
+| ------------------------------------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub child workflow                | GitHub Action       | `setup-dkml` is more complex to configure, and takes longer to run                                                                                                                                                                                                                                         |
+| MSVC + MSYS2                         | GCC + Cygwin        | On Windows `setup-dkml` can let your native code use ordinary Windows libraries without ABI conflicts. You can also distribute your executables without the license headache of redistributing or statically linking `libgcc_s_seh` and `libstdc++`                                                        |
+| dkml-base-compiler                   | ocaml-base-compiler | On macOS, `setup-dkml` cross-compiles to ARM64 with `dune -x darwin_arm64`                                                                                                                                                                                                                                 |
+| dkml-base-compiler                   | ocaml-base-compiler | `setup-dkml` only supports 4.12.1 today. `setup-ocaml` supports all versions and variants of OCaml                                                                                                                                                                                                         |
+| CentOS 7 and Linux distros from 2014 | Latest Ubuntu       | On Linx, `setup-dkml` builds with an old GLIBC. `setup-dkml` dynamically linked Linux executables will be highly portable as GLIBC compatibility issues should be rare, and compatible with the unmodified LGPL license used by common OCaml dependencies like [GNU MP](https://gmplib.org/manual/Copying) |
+| 0 yrs                                | 4 yrs               | `setup-ocaml` is officially supported and well-tested.                                                                                                                                                                                                                                                     |
+
+> Put simply, use `setup-dkml` when you are distributing executables or libraries to the public. Use `setup-ocaml` for all other needs.
+
+`setup-dkml` will setup the following OCaml build environments for you:
 
 | ABIs                       | Native `ocamlopt` compiler supports the following operating systems:                                                                 |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -34,11 +49,22 @@ jobs:
     uses: 'diskuv/dkml-workflows/.github/workflows/setup-dkml.yml@v0'
     with:
       ocaml-compiler: 4.12.1
+      fdopen-opamexe-bootstrap: true # Use opam.exe from fdopen's site on Windows. Temporary mitigation until a transient bug is fixed.
 ```
 
-Only OCaml `4.12.1` is supported today.
+`setup-dkml` will create an Opam switch containing an OCaml compiler based on the dkml-base-compiler packages.
+Only OCaml `ocaml-compiler: 4.12.1` is supported today.
 
-### matrix build workflow
+The switch will have an Opam variable `ocaml-ci=true` that can be used in Opam filter expressions for advanced optimizations like:
+
+```c
+[ "make" "rebuild-expensive-assets-from-scratch" ]    {ocaml-ci}
+[ "make" "download-assets-from-last-github-release" ] {!ocaml-ci}
+```
+
+### Matrix build workflow
+
+You can copy and paste the following:
 
 ```yaml
 jobs:
@@ -129,9 +155,22 @@ jobs:
           set -eufx
           opamrun install . --with-test --deps-only
           opamrun exec -- dune build @install
+
+          # Package up whatever you built
+          mkdir dist
+          tar cvfCz dist/${{ matrix.host_target_abis }}.tar.gz _build/install/default .
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.host_target_abis }}
+          path: dist/${{ matrix.host_target_abis }}.tar.gz
 ```
 
-### release workflow
+The second last step ("Use opamrun to build your executable") should be custom to your application.
+
+### Release workflow
+
+You can copy and paste the following:
 
 ```yaml
 jobs:

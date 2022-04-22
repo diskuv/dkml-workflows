@@ -56,7 +56,7 @@ on:
         type: boolean
         description: "Use opam.exe from fdopen on Windows. Typically only used when bootstrapping Opam for the first time. May be needed to solve '\"create_process\" failed on sleep: Bad file descriptor' which may need https://github.com/ocaml/opam/commit/417b97d8cfada35682a0f4107eb2e4f9e24fba91"
         required: false
-        default: false
+        default: true # Until we upgrade Opam. But this is just documentation ... it does not influence how the input variable is set
       cache-prefix:
         type: string
         description: The prefix of the cache keys.
@@ -406,7 +406,6 @@ jobs:
         if: "!(inputs.fdopen-opamexe-bootstrap && startsWith(matrix.dkml-host-abi, 'windows')) && matrix.bootstrap-opam-version != 'os'"
         env:
           VER: ${{ matrix.bootstrap-opam-version }}
-          ABI_DIR: ${{ matrix.host_target_abis }}/staging-files/${{ matrix.dkml-host-abi}}
         run: |
           #!/bin/sh
           set -eufx
@@ -414,13 +413,13 @@ jobs:
           cd .ci/sd4/bs
 
           if [ ! -e version ] || [ "$(cat version)" != "$VER" ]; then
-            curl -L -o opam.tar.gz "https://github.com/diskuv/dkml-component-opam/releases/download/v$VER/dkml-component-staging-opam.tar.gz"
+            curl -L -o opam.tar.gz "https://github.com/diskuv/dkml-component-opam/releases/download/v${{ matrix.bootstrap-opam-version }}/dkml-component-staging-opam.tar.gz"
             tar tvfz opam.tar.gz
-            tar xfz opam.tar.gz "./$ABI_DIR/"
+            tar xfz opam.tar.gz "./staging-files/${{ matrix.dkml-host-abi}}/"
             rm -rf bin/
-            mv "$ABI_DIR"/bin .
+            mv "staging-files/${{ matrix.dkml-host-abi}}/bin" .
             rm -rf "${{ matrix.host_target_abis }}"
-            printf "%s" "$VER" > version
+            printf "%s" "${{ matrix.bootstrap-opam-version }}" > version
           fi
           rm -f opam.tar.gz
 
