@@ -129,7 +129,7 @@ jobs:
             bits: "32"
             default_shell: msys2 {0}
             exe_ext: .exe
-            bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
+            bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
             # The 32-bit Opam binary has some problems with
             # `Unix.create_process` giving:
             #   "create_process" failed on sleep: Bad file descriptor
@@ -144,7 +144,7 @@ jobs:
             bits: "64"
             default_shell: msys2 {0}
             exe_ext: .exe
-            bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
+            bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
             opam-abi: windows_x86_64
             dkml-host-abi: windows_x86_64
             opam-root: D:/.opam
@@ -157,7 +157,7 @@ jobs:
           #   bits: "64"
           #   default_shell: msys2 {0}
           #   exe_ext: .exe
-          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
+          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
           #   opam-abi: windows_x86_64
           #   dkml-host-abi: windows_x86_64
           #   opam-root: D:/.opam
@@ -181,7 +181,7 @@ jobs:
           #   bits: "64"
           #   default_shell: msys2 {0}
           #   exe_ext: .exe
-          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
+          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
           #   opam-abi: windows_x86_64
           #   dkml-host-abi: windows_x86_64
           #   opam-root: D:/.opam
@@ -197,7 +197,7 @@ jobs:
             host_target_abis: macos-darwin_all
             bits: "64"
             default_shell: sh
-            bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
+            bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
             dkml-host-abi: darwin_x86_64
             opam-root: /Users/runner/.opam
 
@@ -240,7 +240,7 @@ jobs:
             bits: "32"
             comment: (CentOS 7, etc.)
             default_shell: sh
-            bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
+            bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
             dkml-host-abi: linux_x86
             opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
             in_docker: "true"
@@ -253,7 +253,7 @@ jobs:
           #   bits: "32"
           #   comment: (glibc>=2.24, Debian 9, etc.)
           #   default_shell: sh
-          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
+          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
           #   dkml-host-abi: linux_x86
           #   opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
           #   docker_runner: docker run --platform linux/386 --rm -v $GITHUB_WORKSPACE:/work --workdir=/work quay.io/pypa/manylinux_2_24_i686 linux32
@@ -264,7 +264,7 @@ jobs:
             bits: "64"
             comment: (CentOS 7, etc.)
             default_shell: sh
-            bootstrap-opam-version: "2.1.0.msys2.12-prerel1"
+            bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
             dkml-host-abi: linux_x86_64
             opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
             dockcross_image: dockcross/manylinux2014-x64
