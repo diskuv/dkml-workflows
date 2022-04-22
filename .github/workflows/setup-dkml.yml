@@ -65,6 +65,7 @@ on:
       ocaml-compiler:
         type: string
         description: "The version of the OCaml compiler, as tagged by the https://github.com/diskuv/dkml-base-compiler repository. If not specified the latest compiler, or the version associated with the 'dkml-compiler' input, is used. Currently only 4.12.1 is supported"
+        required: false
       ocaml:
         type: string
         description: "Git branch, tag or commit for ocaml package in the dkml-compiler repository"
