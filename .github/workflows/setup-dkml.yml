@@ -328,7 +328,6 @@ jobs:
 
     steps:
       # Install utilities
-      #   tree: Nice for pretty-printing the final package tree
       #   wget: Needed for the Windows Opam download-command
       #   make: Needed for OCaml ./configure + make
       #   pkg-config: conf-pkg-config is used by many OCaml packages
@@ -338,16 +337,15 @@ jobs:
       #   patch: Needed for Opam
       #   unzip: Needed for Opam
       #   git: Needed for Opam
+      #   tar: For Opam 2.0 from fdopen, we need MSYS2/Cygwin tar that can handle
+      #      Unix paths like /tmp.
       - name: Install MSYS2 (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
         uses: msys2/setup-msys2@v2
         with:
           msystem: MSYS
           update: true
-          # 1. For Opam 2.0 from fdopen we need MSYS2/Cygwin tar that can handle
-          #    Unix paths like /tmp.
           install: >-
-            tree
             wget
             make
             pkg-config

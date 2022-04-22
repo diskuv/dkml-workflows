@@ -121,7 +121,6 @@ jobs:
           msystem: MSYS
           update: true
           install: >-
-            tree
             wget
             make
             pkg-config
@@ -153,7 +152,7 @@ jobs:
         run: |
           #!/bin/sh
           set -eufx
-          opamrun install . --with-test --deps-only
+          opamrun install . --with-test --deps-only --yes
           opamrun exec -- dune build @install
 
           # Package up whatever you built
