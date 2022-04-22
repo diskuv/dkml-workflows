@@ -3,7 +3,6 @@ name: setup-dkml
 
 env:
   DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "19372192396b46dc51900022a19373fc1f2188e7" # "v0.4.0-prerel19_r2" when released
-  DEFAULT_OCAML_VERSION: "4.12.1"
   PIN_OCAMLFIND: "1.9.1"
   PIN_OCAMLBUILD: "0.14.0"
   PIN_DUNE: "2.9.3"
@@ -809,17 +808,21 @@ jobs:
 
       # ocaml
 
-      - name: Checkout ocaml (ocaml default or specified; no ocaml-compiler specified)
-        if: env.INPUT_OCAML != '@repository@' && inputs.ocaml-compiler == ''
+      - name: Checkout ocaml
+        if: env.INPUT_OCAML != '@repository@'
         uses: actions/checkout@v2
         with:
           repository: diskuv/dkml-compiler
           path: .ci/sd4/g/ocaml
           ref: ${{ env.INPUT_OCAML }} # empty is no `ref`, which is default branch
 
-      - name: Pin ocaml.${{ env.DEFAULT_OCAML_VERSION }} to checkout instead of Opam repository (ocaml default; no ocaml-compiler specified)
+      - name: Pin ocaml to checkout instead of Opam repository (ocaml-compiler specified)
+        if: env.INPUT_OCAML == '' && inputs.ocaml-compiler != ''
+        run: opamrun pin add --yes --no-action ocaml.${{ inputs.ocaml-compiler }} .ci/sd4/g/ocaml
+
+      - name: Pin ocaml.4.12.1 to checkout instead of Opam repository (ocaml default; no ocaml-compiler specified)
         if: env.INPUT_OCAML == '' && inputs.ocaml-compiler == ''
-        run: opamrun pin add --yes --no-action ocaml.${{ env.DEFAULT_OCAML_VERSION }} .ci/sd4/g/ocaml
+        run: opamrun pin add --yes --no-action ocaml.4.12.1 .ci/sd4/g/ocaml
 
       - name: Pin ocaml to checkout instead of Opam repository (ocaml specified; no ocaml-compiler specified)
         if: (env.INPUT_OCAML != '' && env.INPUT_OCAML != '@repository@') && inputs.ocaml-compiler == ''
