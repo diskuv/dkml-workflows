@@ -21,10 +21,20 @@ on:
             import_HOST_TARGET_ABIS=$1
             shift
 
+            case "$import_HOST_TARGET_ABIS" in
+              win32*)         import_OPAMROOT="D:/.opam" ;;
+              macos*)         import_OPAMROOT="/Users/runner/.opam" ;;
+              manylinux2014*) import_OPAMROOT=".ci/opamroot" ;;
+              *)
+                printf "FATAL: Unsupported abi: %s\n" "$import_HOST_TARGET_ABIS" >&2
+                exit 109
+                ;;
+            esac
+
             ls -R .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS} >&2
 
-            install -d "$OPAMROOT"
-            tar xCfz "$OPAMROOT" .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/opamroot.tar.gz
+            install -d "$import_OPAMROOT"
+            tar xCfz "$import_OPAMROOT" .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/opamroot.tar.gz
 
             install -d .ci/sd4/g
             tar xCfz .ci/sd4/g .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/sources.tar.gz
@@ -43,11 +53,6 @@ on:
               # Also get rid of link.exe; it interferes with MSVC's link.exe
               mv -v /usr/bin/link.exe /usr/bin/link.gnu.exe
             fi
-
-            # Expose Visual Studio environment variables
-            #if [ -e .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/vsenv ]; then
-            #  cat .ci/dist/setup-dkml-${import_HOST_TARGET_ABIS}/vsenv >> $GITHUB_ENV
-            #fi
           }
 
     inputs:
@@ -93,8 +98,14 @@ jobs:
         #   Special value of 'os' means use the OS's package manager
         #   (yum/apt/brew).
         # opam-root
-        #   We need a stable location for OPAMROOT even if the version of Opam
-        #   changes (there are two versions: bootstrap and the compiled one).
+        #   OPAMROOT must be a subdirectory of GITHUB_WORKSPACE if running in
+        #   dockcross so that the Opam root (and switch) is visible in both the
+        #   parent and Docker context. Always specify this form as a relative
+        #   path under GITHUB_WORKSPACE.
+        #   When not using dockcross, it should be an absolute path to a
+        #   directory with a short length to minimize the 260 character
+        #   limit on Windows (macOS/XCode also has some small limit).
+        #   CAUTION: The opam-root MUST be in sync with outputs.import_func!
         # vsstudio-hostarch
         #   Only needed if `os: windows-*`. The ARCH in
         #   `vsdevcmd.bat -host_arch=ARCH`. Example: x64.
@@ -129,11 +140,7 @@ jobs:
             default_shell: msys2 {0}
             exe_ext: .exe
             bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
-            # The 32-bit Opam binary has some problems with
-            # `Unix.create_process` giving:
-            #   "create_process" failed on sleep: Bad file descriptor
-            # So use 64-bit Opam binary?
-            opam-abi: windows_x86 # _64
+            opam-abi: windows_x86
             dkml-host-abi: windows_x86
             opam-root: D:/.opam
             vsstudio-hostarch: x64
