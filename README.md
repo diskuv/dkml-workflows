@@ -140,7 +140,7 @@ jobs:
       - name: Import build environments from setup-dkml
         run: |
           ${{ needs.setup-dkml.outputs.import_func }}
-          import ${{ matrix.host_target_abis }}
+          import ${{ matrix.abi }}
 
       - name: Cache Opam downloads by host
         uses: actions/cache@v2
@@ -157,12 +157,12 @@ jobs:
 
           # Package up whatever you built
           mkdir dist
-          tar cvfCz dist/${{ matrix.host_target_abis }}.tar.gz _build/install/default .
+          tar cvfCz dist/${{ matrix.abi }}.tar.gz _build/install/default .
 
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.host_target_abis }}
-          path: dist/${{ matrix.host_target_abis }}.tar.gz
+          name: ${{ matrix.abi }}
+          path: dist/${{ matrix.abi }}.tar.gz
 ```
 
 The second last step ("Use opamrun to build your executable") should be custom to your application.
