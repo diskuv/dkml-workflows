@@ -85,6 +85,10 @@ on:
         description: "Git branch, tag or commit for the diskuv-opam-repository repository"
         required: false
         default: "" # DEFAULT_DISKUV_OPAM_REPOSITORY_TAG is used as default for empty strings
+      verbose:
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build:
@@ -918,7 +922,8 @@ jobs:
           key: ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-vsenv-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}-${{ matrix.vsstudio-dir }}
 
       - name: Diagnose Visual Studio environment variables (Windows)
-        if: startsWith(matrix.dkml-host-abi, 'windows')
+        # This wastes time and has lots of rows! Only run if "verbose" GitHub input key.
+        if: inputs.verbose && startsWith(matrix.dkml-host-abi, 'windows')
         shell: pwsh
         run: |
           if (Test-Path -Path "C:\Program Files (x86)\Windows Kits\10\include") {
