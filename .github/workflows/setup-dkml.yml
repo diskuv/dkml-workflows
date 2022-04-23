@@ -519,6 +519,12 @@ jobs:
             ${{ inputs.cache-prefix }}_${{ matrix.host_target_abis }}-sd4-opamroot-${{ env.OPAM_BINARY_CACHE_KEY }}
 
       - name: Write and Distribute Opam scripts
+        env:
+          # With fdopen's opam.exe, `os-distribution = "cygwinports"`. But native Windows opam.exe has `os-distribution = "win32"`.
+          # But on Windows we always want MSYS2 or native Windows libraries, not Cygwin. If cygwinports then
+          # code like https://github.com/ocaml/opam-repository/blob/08cbb8258bd4bf30cd6f307c958911a29d537b54/packages/conf-pkg-config/conf-pkg-config.2/opam#L36
+          # will fail. So always set `os-distribution = "win32"` on Windows.
+          PATCH_OS_DISTRIBUTION_WIN32: ${{ inputs.fdopen-opamexe-bootstrap && startsWith(matrix.dkml-host-abi, 'windows') }}
         run: |
           #!/bin/sh
           set -eufx
@@ -554,6 +560,7 @@ jobs:
           set -euf
           export PATH="/work/.ci/sd4/bs/bin:/work/.ci/sd4/opamexe:\$PATH"
           export OPAMROOT=/work/${{ matrix.opam-root }}
+          if [ "${{ env.PATCH_OS_DISTRIBUTION_WIN32 }}" = true ]; then export OPAMVAR_os_distribution=win32; fi
           exec "\$@"
           EOF
               chmod +x .ci/sd4/env-opam-real
@@ -614,6 +621,8 @@ jobs:
           #!/bin/sh
           set -euf
           export PATH="\$GITHUB_WORKSPACE/.ci/sd4/bs/bin:\$GITHUB_WORKSPACE/.ci/sd4/opamexe:\$PATH"
+          export OPAMROOT='${{ matrix.opam-root }}'
+          if [ "${{ env.PATCH_OS_DISTRIBUTION_WIN32 }}" = true ]; then export OPAMVAR_os_distribution=win32; fi
           exec "\$@"
           EOF
             chmod +x .ci/sd4/env-opam
