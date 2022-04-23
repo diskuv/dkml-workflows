@@ -530,9 +530,12 @@ jobs:
           # code like https://github.com/ocaml/opam-repository/blob/08cbb8258bd4bf30cd6f307c958911a29d537b54/packages/conf-pkg-config/conf-pkg-config.2/opam#L36
           # will fail. So always set `os-distribution = "win32"` on Windows.
           PATCH_OS_DISTRIBUTION_WIN32: ${{ inputs.fdopen-opamexe-bootstrap && startsWith(matrix.dkml-host-abi, 'windows') }}
+          # With fdopen's opam.exe, no `exe = ".exe"` is set because Cygwin does not need file extensions. Native Windows
+          # requires a .exe extension.
+          PATCH_EXE_WIN32: ${{ inputs.fdopen-opamexe-bootstrap && startsWith(matrix.dkml-host-abi, 'windows') }}
         run: |
           #!/bin/sh
-          set -eufx
+          set -euf
 
           # ---------------------
           # Empty opam repository
@@ -566,6 +569,8 @@ jobs:
           export PATH="/work/.ci/sd4/bs/bin:/work/.ci/sd4/opamexe:\$PATH"
           export OPAMROOT=/work/${{ matrix.opam-root }}
           if [ "${{ env.PATCH_OS_DISTRIBUTION_WIN32 }}" = true ]; then export OPAMVAR_os_distribution=win32; fi
+          if [ "${{ env.PATCH_EXE_WIN32 }}" = true ]; then export OPAMVAR_exe=.exe; fi
+          set -x
           exec "\$@"
           EOF
               chmod +x .ci/sd4/env-opam-real
@@ -628,6 +633,8 @@ jobs:
           export PATH="\$GITHUB_WORKSPACE/.ci/sd4/bs/bin:\$GITHUB_WORKSPACE/.ci/sd4/opamexe:\$PATH"
           export OPAMROOT='${{ matrix.opam-root }}'
           if [ "${{ env.PATCH_OS_DISTRIBUTION_WIN32 }}" = true ]; then export OPAMVAR_os_distribution=win32; fi
+          if [ "${{ env.PATCH_EXE_WIN32 }}" = true ]; then export OPAMVAR_exe=.exe; fi
+          set -x
           exec "\$@"
           EOF
             chmod +x .ci/sd4/env-opam
@@ -645,7 +652,7 @@ jobs:
           install -d .ci/sd4/opamrun
           cat > .ci/sd4/opamrun/opamrun <<EOF
           #!/bin/sh
-          set -eufx
+          set -euf
 
           # Add MSVC compiler environment if available
           if [ -e "\$GITHUB_WORKSPACE"/.ci/sd4/msvcenv ]; then
