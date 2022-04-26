@@ -40,7 +40,7 @@ You will need three sections in your GitHub Actions `.yml` file to build your ex
 2. A "matrix build" workflow to build your OCaml native executables on each
 3. A "release" workflow to assemble all of your native executables into a single release
 
-### `setup-dkml` workflow
+### Job 1: Define the `setup-dkml` workflow
 
 Add the `setup-dkml` child workflow to your own GitHub Actions `.yml` file:
 
@@ -50,20 +50,22 @@ jobs:
     uses: 'diskuv/dkml-workflows/.github/workflows/setup-dkml.yml@v0'
     with:
       ocaml-compiler: 4.12.1
-      fdopen-opamexe-bootstrap: true # Use opam.exe from fdopen's site on Windows. Temporary mitigation until a transient bug is fixed.
+      fdopen-opamexe-bootstrap: true # Use opam.exe from fdopen's deprecated Windows site. This is temporary until a transient bug is fixed.
 ```
 
 `setup-dkml` will create an Opam switch containing an OCaml compiler based on the dkml-base-compiler packages.
 Only OCaml `ocaml-compiler: 4.12.1` is supported today.
 
-The switch will have an Opam variable `ocaml-ci=true` that can be used in Opam filter expressions for advanced optimizations like:
+> **Advanced**
+> 
+> The switch will have an Opam variable `ocaml-ci=true` that can be used in Opam filter expressions for advanced optimizations like:
+>
+> ```c
+> [ "make" "rebuild-expensive-assets-from-scratch" ]    {ocaml-ci}
+> [ "make" "download-assets-from-last-github-release" ] {!ocaml-ci}
+> ```
 
-```c
-[ "make" "rebuild-expensive-assets-from-scratch" ]    {ocaml-ci}
-[ "make" "download-assets-from-last-github-release" ] {!ocaml-ci}
-```
-
-### Matrix build workflow
+### Job 2: Define a matrix build workflow
 
 You can copy and paste the following:
 
@@ -82,33 +84,33 @@ jobs:
       matrix:
         include:
           - os: windows-2019
-            abi: win32-windows_x86
+            abi-pattern: win32-windows_x86
             dkml-host-abi: windows_x86
             opam-root: D:/.opam
             default_shell: msys2 {0}
           - os: windows-2019
-            abi: win32-windows_x86_64
+            abi-pattern: win32-windows_x86_64
             dkml-host-abi: windows_x86_64
             opam-root: D:/.opam
             default_shell: msys2 {0}
           - os: macos-latest
-            abi: macos-darwin_all
+            abi-pattern: macos-darwin_all
             dkml-host-abi: darwin_x86_64
             opam-root: /Users/runner/.opam
             default_shell: sh
           - os: ubuntu-latest
-            abi: manylinux2014-linux_x86
+            abi-pattern: manylinux2014-linux_x86
             dkml-host-abi: linux_x86
             opam-root: .ci/opamroot
             default_shell: sh
           - os: ubuntu-latest
-            abi: manylinux2014-linux_x86_64
+            abi-pattern: manylinux2014-linux_x86_64
             dkml-host-abi: linux_x86_64
             opam-root: .ci/opamroot
             default_shell: sh
 
     runs-on: ${{ matrix.os }}
-    name: build-${{ matrix.abi }}
+    name: build-${{ matrix.abi-pattern }}
 
     # Use a Unix shell by default, even on Windows
     defaults:
@@ -146,13 +148,21 @@ jobs:
       - name: Import build environments from setup-dkml
         run: |
           ${{ needs.setup-dkml.outputs.import_func }}
+<<<<<<< HEAD
           import ${{ matrix.abi }}
+=======
+          import ${{ matrix.abi-pattern }}
+>>>>>>> 53b37a3 (Rename to abi-pattern)
 
       - name: Cache Opam downloads by host
         uses: actions/cache@v2
         with:
           path: ${{ matrix.opam-root }}/download-cache
           key: ${{ matrix.dkml-host-abi }}
+
+      # >>>>>>>>>>>>>
+      # You can customize the next two steps!
+      # >>>>>>>>>>>>>
 
       - name: Use opamrun to build your executable
         run: |
@@ -163,17 +173,17 @@ jobs:
 
           # Package up whatever you built
           mkdir dist
-          tar cvfCz dist/${{ matrix.abi }}.tar.gz _build/install/default .
+          tar cvfCz dist/${{ matrix.abi-pattern }}.tar.gz _build/install/default .
 
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.abi }}
-          path: dist/${{ matrix.abi }}.tar.gz
+          name: ${{ matrix.abi-pattern }}
+          path: dist/${{ matrix.abi-pattern }}.tar.gz
 ```
 
-The second last step ("Use opamrun to build your executable") should be custom to your application.
+The second last GitHub step ("Use opamrun to build your executable") should be custom to your application.
 
-### Release workflow
+### Job 3: Define a release workflow
 
 You can copy and paste the following:
 
@@ -197,9 +207,13 @@ jobs:
         run: rm -rf setup-*
         working-directory: dist
 
-      - name: Display files to be distributed
+      - name: Display files downloaded
         run: ls -R
         working-directory: dist
+
+      # >>>>>>>>>>>>>
+      # You can customize the next two steps!
+      # >>>>>>>>>>>>>
 
       - name: Release (only when Git tag pushed)
         uses: softprops/action-gh-release@v1
