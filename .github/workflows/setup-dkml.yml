@@ -3,11 +3,21 @@ name: setup-dkml
 
 env:
   DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "bfd4423a34d13dd16168bf524f88b48e6a816bb3" # "v0.4.0-prerel19_r4"
-  PIN_OCAMLFIND: "1.9.1"
-  PIN_OCAMLBUILD: "0.14.0"
-  PIN_DUNE: "2.9.3"
+  DEFAULT_OCAML_VERSION: "4.12.1"
+  PIN_BASE: "v0.14.3"
+  PIN_BIGSTRINGAF: "0.8.0"
+  PIN_CORE_KERNEL: "v0.14.2"
+  PIN_CTYPES_FOREIGN: "0.19.2-windowssupport-r4"
+  PIN_CTYPES: "0.19.2-windowssupport-r4"
+  PIN_CURLY: "0.2.1-windows-env_r2"
   PIN_DIGESTIF: "1.0.1"
+  PIN_DUNE: "2.9.3"
+  PIN_OCAMLBUILD: "0.14.0"
+  PIN_OCAMLFIND: "1.9.1"
+  PIN_OCP_INDENT: "1.8.2-windowssupport"
   PIN_PPX_EXPECT: "v0.14.1"
+  PIN_PTIME: "0.8.6-msvcsupport"
+  PIN_TIME_NOW: "v0.14.0"
 
 on:
   workflow_call:
@@ -913,14 +923,29 @@ jobs:
       # repository up until 2.9.3. Need to upstream fix the problem.
       #
       # - ppx_expect; only patch is for v0.14.1. Need to upstream fix the problem.
+      # - base; patches for v0.14.1/2/3. Need to upstream fix the problem.
       - name: Pins for packages in diskuv-opam-repository
         run: |
-          opamrun pin add --yes --no-action -k version ocamlfind ${{ env.PIN_OCAMLFIND }}
-          opamrun pin add --yes --no-action -k version ocamlbuild ${{ env.PIN_OCAMLBUILD }}
+          opamrun pin add --yes --no-action -k version base ${{ env.PIN_BASE }}
+          opamrun pin add --yes --no-action -k version bigstringaf ${{ env.PIN_BIGSTRINGAF }}
+          opamrun pin add --yes --no-action -k version core_kernel ${{ env.PIN_CORE_KERNEL }}
+          opamrun pin add --yes --no-action -k version ctypes ${{ env.PIN_CTYPES }}
+          opamrun pin add --yes --no-action -k version ctypes-foreign ${{ env.PIN_CTYPES_FOREIGN }}
+          opamrun pin add --yes --no-action -k version curly ${{ env.PIN_CURLY }}
+          opamrun pin add --yes --no-action -k version digestif ${{ env.PIN_DIGESTIF }}
           opamrun pin add --yes --no-action -k version dune ${{ env.PIN_DUNE }}
           opamrun pin add --yes --no-action -k version dune-configurator ${{ env.PIN_DUNE }}
+          opamrun pin add --yes --no-action -k version ocamlbuild ${{ env.PIN_OCAMLBUILD }}
+          opamrun pin add --yes --no-action -k version ocamlfind ${{ env.PIN_OCAMLFIND }}
+          opamrun pin add --yes --no-action -k version ocp-indent ${{ env.PIN_OCP_INDENT }}
           opamrun pin add --yes --no-action -k version ppx_expect ${{ env.PIN_PPX_EXPECT }}
-          opamrun pin add --yes --no-action -k version digestif ${{ env.PIN_DIGESTIF }}
+          opamrun pin add --yes --no-action -k version ptime ${{ env.PIN_PTIME }}
+          opamrun pin add --yes --no-action -k version time_now ${{ env.PIN_TIME_NOW }}
+
+      - name: Pins for package patches not yet upstreamed and not part of diskuv-opam-repository
+        run: |
+          # crunch has a bug on Windows that has not been upstreamed yet
+          opamrun pin add --yes --no-action crunch 'https://github.com/jonahbeckford/ocaml-crunch.git#feature-windowsopen'
 
       # Setup C compiler
 
