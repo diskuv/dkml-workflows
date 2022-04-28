@@ -373,7 +373,7 @@ jobs:
 
       - name: Checkout dkml-runtime-distribution (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: diskuv/dkml-runtime-distribution
           path: .ci/sd4/drd
@@ -801,7 +801,7 @@ jobs:
 
       - name: Checkout dkml-base-compiler (dkml-base-compiler specified; no ocaml-compiler specified)
         if: env.DKML_BASE_COMPILER != '@repository@' && inputs.ocaml-compiler == ''
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: diskuv/dkml-compiler
           path: .ci/sd4/g/dkml-base-compiler
@@ -820,7 +820,7 @@ jobs:
 
       - name: Checkout dkml-base-compiler (ocaml-compiler specified)
         if: inputs.ocaml-compiler != ''
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: diskuv/dkml-compiler
           path: .ci/sd4/g/dkml-base-compiler
@@ -834,7 +834,7 @@ jobs:
 
       - name: Checkout conf-dkml-cross-toolchain
         if: env.CONF_DKML_CROSS_TOOLCHAIN != '@repository@'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: diskuv/conf-dkml-cross-toolchain
           path: .ci/sd4/g/conf-dkml-cross-toolchain
@@ -848,7 +848,7 @@ jobs:
 
       - name: Checkout ocaml
         if: env.INPUT_OCAML != '@repository@'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: diskuv/dkml-compiler
           path: .ci/sd4/g/ocaml
@@ -870,7 +870,7 @@ jobs:
 
       - name: Checkout ocaml-config
         if: env.OCAML_CONFIG != '@repository@'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: diskuv/dkml-compiler
           path: .ci/sd4/g/ocaml-config
@@ -884,7 +884,7 @@ jobs:
 
       - name: Checkout dkml-option-32bit
         if: env.DKML_OPTION_32BIT != '@repository@'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: diskuv/dkml-compiler
           path: .ci/sd4/g/dkml-option-32bit

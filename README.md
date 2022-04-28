@@ -120,7 +120,7 @@ jobs:
     steps:
       # Checkout your source code however you'd like. Typically it is:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install MSYS2 to provide Unix shell (Windows only)
         if: startsWith(matrix.dkml-host-abi, 'windows')
