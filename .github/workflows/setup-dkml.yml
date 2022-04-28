@@ -1018,10 +1018,12 @@ jobs:
           # MSVC environment variables:
           # 1. https://docs.microsoft.com/en-us/cpp/build/reference/cl-environment-variables?view=msvc-170
           # 2. https://docs.microsoft.com/en-us/cpp/build/reference/linking?view=msvc-170#link-environment-variables (except TMP)
+          # 3. VCToolsRedistDir: https://docs.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files?view=msvc-170#locate-the-redistributable-files
           $awk = @"
           BEGIN{FS="="}
           `$1=="CL"||`$1=="_CL_"||`$1=="INCLUDE"||`$1=="LIBPATH" {print "export " `$0}
           `$1=="LINK"||`$1=="_LINK_"||`$1=="LIB"||`$1=="PATH"    {print "export " `$0}
+          `$1=="VCToolsRedistDir"                                {print "export " `$0}
           "@
           [IO.File]::WriteAllLines(".ci/sd4/msvcenv.awk", $awk)
 
@@ -1053,15 +1055,6 @@ jobs:
           REM VsDevCmd.bat turns off echo; be explicit if we want it on or off
           @echo OFF
 
-          REM ~~We must place MSYS2 in front of path so that MSYS2
-          REM ~~tar.exe is used instead of Windows tar.exe.
-          REM ~~But setup-msys2 puts MSYS2 in a temp directory when release=false.
-          REM ~~So we use setup-msys2's `msys2 -c` wrapper.
-          REM ~~FOR /F "tokens=* usebackq" %%F IN (`msys2 -c "cygpath -aw /usr/bin"`) DO (
-          REM ~~  set "MSYS2BIN=%%F"
-          REM ~~)
-          REM ~~set PATH=%MSYS2BIN%;%PATH%
-
           REM MSVC environment variables in Unix format.
           REM * We can't use `msys2 -c` directly to query for all MSVC environment variables
           REM   because it stomps over the PATH. So we have a separate solution for PATH.
@@ -1078,7 +1071,6 @@ jobs:
           cat .ci/sd4/msvcpath | tr -d '\r' | cygpath --path -f - | awk -f .ci/sd4/msvcpath.awk >> .ci/sd4/msvcenv
 
           tail -n100 .ci/sd4/msvcpath .ci/sd4/msvcenv >&2
-
 
       - name: Use Visual Studio in dkml-* Opam packages (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
@@ -1137,6 +1129,8 @@ jobs:
               opamrun option setenv # print
               ;;
           esac
+
+          opamrun exec -- sh -c 'echo $VCToolsRedistDir'
 
       - name: Install OCaml compiler
         run: |

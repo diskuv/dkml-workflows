@@ -22,15 +22,17 @@ In contrast to the conventional [setup-ocaml](https://github.com/marketplace/act
 
 `setup-dkml` will setup the following OCaml build environments for you:
 
-| ABIs                       | Native `ocamlopt` compiler supports the following operating systems:                                                                 |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| win32-windows_x86          | 32-bit Windows for Intel/AMD CPUs                                                                                                    |
-| win32-windows_x86_64       | 64-bit Windows for Intel/AMD CPUs                                                                                                    |
-| macos-darwin_all           | 64-bit macOS for Intel and Apple Silicon CPUs. Using `dune -x darwin_arm64` will cross-compile to both; otherwise defaults to Intel. |
-| manylinux2014-linux_x86    | 32-bit Linux: CentOS 7, CentOS 8, Fedora 32+, Mageia 8+, openSUSE 15.3+, Photon OS 4.0+ (3.0+ with updates), Ubuntu 20.04+           |
-| manylinux2014-linux_x86_64 | 64-bit Linux: CentOS 7, CentOS 8, Fedora 32+, Mageia 8+, openSUSE 15.3+, Photon OS 4.0+ (3.0+ with updates), Ubuntu 20.04+           |
+| ABIs                       | Native `ocamlopt` compiler supports building executables for the following operating systems:                                            |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| win32-windows_x86          | 32-bit Windows [1] for Intel/AMD CPUs                                                                                                    |
+| win32-windows_x86_64       | 64-bit Windows [1] for Intel/AMD CPUs                                                                                                    |
+| macos-darwin_all           | 64-bit macOS for Intel and Apple Silicon CPUs. Using `dune -x darwin_arm64` will cross-compile [2] to both; otherwise defaults to Intel. |
+| manylinux2014-linux_x86    | 32-bit Linux: CentOS 7, CentOS 8, Fedora 32+, Mageia 8+, openSUSE 15.3+, Photon OS 4.0+ (3.0+ with updates), Ubuntu 20.04+               |
+| manylinux2014-linux_x86_64 | 64-bit Linux: CentOS 7, CentOS 8, Fedora 32+, Mageia 8+, openSUSE 15.3+, Photon OS 4.0+ (3.0+ with updates), Ubuntu 20.04+               |
 
-> Cross-compiling typically requires that you use Dune to build all your OCaml package dependencies.
+> **[1]** See [Distributing your Windows executables](#distributing-your-windows-executables) for further details
+
+> **[2]** Cross-compiling typically requires that you use Dune to build all your OCaml package dependencies.
 > [opam monorepo](https://github.com/ocamllabs/opam-monorepo#readme) makes it easy to do exactly that.
 > Alternatively you can directly use [findlib toolchains](http://projects.camlcity.org/projects/dl/findlib-1.9.3/doc/ref-html/r865.html).
 
@@ -57,7 +59,7 @@ jobs:
 Only OCaml `ocaml-compiler: 4.12.1` is supported today.
 
 > **Advanced**
-> 
+>
 > The switch will have an Opam variable `ocaml-ci=true` that can be used in Opam filter expressions for advanced optimizations like:
 >
 > ```c
@@ -76,7 +78,7 @@ jobs:
   build:
     # Wait until `setup-dkml` is finished
     needs: setup-dkml
-    
+
     # Five (5) build environments will be available. You can include
     # all of them or a subset of them.
     strategy:
@@ -148,11 +150,7 @@ jobs:
       - name: Import build environments from setup-dkml
         run: |
           ${{ needs.setup-dkml.outputs.import_func }}
-<<<<<<< HEAD
-          import ${{ matrix.abi }}
-=======
           import ${{ matrix.abi-pattern }}
->>>>>>> 53b37a3 (Rename to abi-pattern)
 
       - name: Cache Opam downloads by host
         uses: actions/cache@v2
@@ -222,3 +220,71 @@ jobs:
           files: |
             dist/*
 ```
+
+### Distributing your executable
+
+#### Distributing your Windows executables
+
+Since your executable has been compiled with the Microsoft Visual Studio
+Compiler (MSVC), your executable will require that the Visual Studio
+Runtime (`vcruntime140.dll`) is available on your end-user's machine.
+
+If your end-user recently purchased a Windows machine the Visual C++ Redistributable
+will not be present; they would see the following if they tried to run your
+executable:
+
+![vcruntime140.dll is missing](images/vcruntime140_missing.png)
+
+`vcruntime140.dll` and other DLLs that are linked into your executable
+by Visual Studio are available as part of the
+[Visual C++ Redistributable Packages](https://docs.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files).
+
+As of April 2022 the Redistributable Packages only support Windows Vista, 7,
+8.1, 10, and 11. Windows XP is **not** supported.
+
+To get the Redistributable Packages onto your end-user's
+machine, do one of the following:
+
+1. Ask your end-user to download from one of the links on (Microsoft Visual C++ Redistributable latest supported downloads)[https://docs.microsoft.com/en-US/cpp/windows/latest-supported-vc-redist]. The end-user will need Administrator privileges.
+2. Bundle your executable inside a standard Windows installer (NSIS, Wix, etc.). You can see NSIS instructions below. The end-user will need Administrator privileges.
+3. Ask your user to download `vcruntime140.dll` and place it in the same
+   directory as your executable. This is not recommended because Windows Update
+   will not be able to apply any security updates to your locally deployed
+   `vcruntime140.dll`.
+
+---
+
+If you choose option 2 and are using NSIS as your Windows installer, you can add
+the following NSIS section to your NSIS configuration:
+
+```nsis
+Section "Visual C++ Redistributable Packages"
+  SetOutPath "$INSTDIR"
+  !include "x64.nsh"
+  ${If} ${IsNativeAMD64}
+    File "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.29.30133\vc_redist.x64.exe"
+    ExecWait '"$INSTDIR\vc_redist.x64.exe" /install /passive'
+    Delete "$INSTDIR\vc_redist.x64.exe"
+  ${ElseIf} ${IsNativeARM64}
+    File "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.29.30133\vc_redist.arm64.exe"
+    ExecWait '"$INSTDIR\vc_redist.arm64.exe" /install /passive'
+    Delete "$INSTDIR\vc_redist.arm64.exe"
+  ${ElseIf} ${IsNativeIA32}
+    File "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.29.30133\vc_redist.x86.exe"
+    ExecWait '"$INSTDIR\vc_redist.x86.exe" /install /passive'
+    Delete "$INSTDIR\vc_redist.x86.exe"
+  ${Else}
+    Abort "Unsupported CPU architecture!"
+  ${EndIf}
+SectionEnd
+```
+
+When you run the `makensis.exe` NSIS compiler the specified `File` must be
+present on the `makensis.exe` machine. Make sure you have set it correctly!
+If the NSIS compiler is running
+as part of the GitHub Actions, you can
+look at the output of setup-dkml.yml's step
+"Capture Visual Studio compiler environment (2/2)"; the directory will be
+the `VCToolsRedistDir` environment variable. The `VCToolsRedistDir` environment
+variable will also be available to use as
+`opamrun exec -- sh -c 'echo $VCToolsRedistDir'`
