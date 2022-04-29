@@ -339,7 +339,11 @@ jobs:
       # Install utilities
       #   wget: Needed for the Windows Opam download-command
       #   make: Needed for OCaml ./configure + make
-      #   pkg-config: conf-pkg-config is used by many OCaml packages
+      #   pkg-config: conf-pkg-config is used by many OCaml packages like digestif.
+      #       TODO: Using pkg-config from MSYSTEM=MSYS rather than
+      #       MSYSTEM=MINGW can cause C code to link to msys2 DLL. Perhaps we
+      #       should switch since MSYSTEM=MINGW prefers MINGW path but falls
+      #       back to MSYS path? And only needed for DKML, not DKSDK.
       #   rsync: On Windows the `cp` fallback can fail; loosely related to
       #        https://github.com/ocaml/opam/issues/4080
       #   diffutils: Needed for diff, which is needed for Opam
