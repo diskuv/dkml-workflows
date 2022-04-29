@@ -304,7 +304,7 @@ jobs:
 
       # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root
-      OPAM_BINARY_CACHE_KEY: r2_${{
+      OPAM_BINARY_CACHE_KEY: r3_${{
         inputs.ocaml-compiler }}_${{
         inputs.fdopen-opamexe-bootstrap }}_${{
         matrix.dkml-host-abi }}_${{
