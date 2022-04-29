@@ -83,7 +83,7 @@ on:
         required: false
       dkml-compiler:
         type: string
-        description: "Git branch, tag or commit for dkml-base-compiler and dkml-option-32bit. However if ocaml-compiler is specified the 'dkml-base-compiler' version is taken from ocaml-compiler, and the 'ocaml' version is transitively taken from 'dkml-base-compiler' Opam dependencies."
+        description: "Git branch, tag or commit for dkml-base-compiler. However if ocaml-compiler is specified the 'dkml-base-compiler' version is taken from ocaml-compiler."
         required: false
         default: "" # Change this to "@repository@" once published to Opam
       conf-dkml-cross-toolchain:
@@ -136,12 +136,13 @@ jobs:
         #   Only needed if `os: windows-*`. The ARCH in
         #   `vsdevcmd.bat -arch=ARCH`. Example: x86.
         #   Confer: https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-170#use-the-developer-tools-in-an-existing-command-window
-        # dkml-options:
-        #   Space separated list of `dkml-option-*` packages.
+        # ocaml-options:
+        #   Space separated list of `ocaml-option-*` packages.
         #
         #   Use 32-bit installers when possible for maximum portability of
-        #   OCaml bytecode. macos is only the major platform without 32-bit.
-        #   You don't need to include `dkml-option-32bit` because it is auto
+        #   OCaml bytecode. Linux has difficulty with 32-bit (needs gcc-multilib, etc.)
+        #   macos is only the major platform without 32-bit.
+        #   You don't need to include `ocaml-option-32bit` because it is auto
         #   chosen when the target ABI ends with x86.
         include:
           # ------------
@@ -151,7 +152,6 @@ jobs:
 
           - os: windows-2019 # 2019 has Visual Studio 2019
             abi-pattern: win32-windows_x86
-            bits: "32"
             default_shell: msys2 {0}
             exe_ext: .exe
             bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
@@ -160,9 +160,9 @@ jobs:
             opam-root: D:/.opam
             vsstudio-hostarch: x64
             vsstudio-arch: x86
+            ocaml-options: ocaml-option-32bit
           - os: windows-2019 # 2019 has Visual Studio 2019
             abi-pattern: win32-windows_x86_64
-            bits: "64"
             default_shell: msys2 {0}
             exe_ext: .exe
             bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
@@ -175,7 +175,6 @@ jobs:
           # other (future) VS versions.
           # - os: windows-2019 # 2019 has Visual Studio 2019
           #   abi-pattern: win32_1416-windows_64 # VS2017 compiler available to VS2019
-          #   bits: "64"
           #   default_shell: msys2 {0}
           #   exe_ext: .exe
           #   bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
@@ -199,7 +198,6 @@ jobs:
           # `opam upgrade`. See https://github.com/diskuv/dkml-component-ocamlcompiler/runs/6059642542?check_suite_focus=true
           # - os: windows-2022
           #   abi-pattern: win32_2022-windows_x86_64
-          #   bits: "64"
           #   default_shell: msys2 {0}
           #   exe_ext: .exe
           #   bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
@@ -216,7 +214,6 @@ jobs:
 
           - os: macos-latest
             abi-pattern: macos-darwin_all
-            bits: "64"
             default_shell: sh
             bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
             dkml-host-abi: darwin_x86_64
@@ -258,7 +255,6 @@ jobs:
           #     FATAL: make opt-core failed
           - os: ubuntu-latest
             abi-pattern: manylinux2014-linux_x86
-            bits: "32"
             comment: (CentOS 7, etc.)
             default_shell: sh
             bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
@@ -271,7 +267,6 @@ jobs:
 
           # - os: ubuntu-latest
           #   abi-pattern: manylinux_2_24-linux_x86
-          #   bits: "32"
           #   comment: (glibc>=2.24, Debian 9, etc.)
           #   default_shell: sh
           #   bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
@@ -282,7 +277,6 @@ jobs:
 
           - os: ubuntu-latest
             abi-pattern: manylinux2014-linux_x86_64
-            bits: "64"
             comment: (CentOS 7, etc.)
             default_shell: sh
             bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
@@ -846,20 +840,6 @@ jobs:
         if: env.CONF_DKML_CROSS_TOOLCHAIN != '@repository@'
         run: opamrun pin add --yes --no-action conf-dkml-cross-toolchain .ci/sd4/g/conf-dkml-cross-toolchain
 
-      # dkml-option-32bit
-
-      - name: Checkout dkml-option-32bit
-        if: env.DKML_OPTION_32BIT != '@repository@'
-        uses: actions/checkout@v3
-        with:
-          repository: diskuv/dkml-compiler
-          path: .ci/sd4/g/dkml-option-32bit
-          ref: ${{ env.DKML_OPTION_32BIT }} # empty is no `ref`, which is default branch
-
-      - name: Pin dkml-option-32bit to checkout instead of Opam repository
-        if: env.DKML_OPTION_32BIT != '@repository@'
-        run: opamrun pin add --yes --no-action dkml-option-32bit .ci/sd4/g/dkml-option-32bit
-
       # patches necessary for Windows in diskuv-opam-repository
       #
       # - ocamlfind and ocamlbuild
@@ -1102,12 +1082,7 @@ jobs:
         run: |
           #!/bin/sh
           set -eufx
-          if [ "${{ matrix.bits }}" = 32 ]; then
-            M_DKMLOPTION_32BIT=dkml-option-32bit
-          else
-            M_DKMLOPTION_32BIT=
-          fi
-          if ! opamrun upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain ${{ matrix.dkml-options }} $M_DKMLOPTION_32BIT; then
+          if ! opamrun upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain ${{ matrix.ocaml-options }}; then
             printf "\n\n========= [START OF TROUBLESHOOTING] ===========\n\n" >&2
             find "$OPAMROOT"/log -mindepth 1 -maxdepth 1 -name "*.out" ! -name "log-*.out" ! -name "ocaml-variants-*.out" | while read -r dump_on_error_LOG; do
                 dump_on_error_BLOG=$(basename "$dump_on_error_LOG")
