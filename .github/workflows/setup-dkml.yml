@@ -2,7 +2,7 @@
 name: setup-dkml
 
 env:
-  DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "47f860c6596b8a8f6237084472e9f7ce0026b02e" # "v0.4.0-prerel19_r5"
+  DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "7a04f7578edaf4c3fb52d4d877ef9596b858242d" # "v0.4.0-prerel19_r6"
   DEFAULT_OCAML_VERSION: "4.12.1"
   PIN_BASE: "v0.14.3"
   PIN_BIGSTRINGAF: "0.8.0"
@@ -1082,7 +1082,8 @@ jobs:
         run: |
           #!/bin/sh
           set -eufx
-          if ! opamrun upgrade --yes dkml-base-compiler ocaml ocaml-config conf-dkml-cross-toolchain ${{ matrix.ocaml-options }}; then
+          opamrun pin list
+          if ! opamrun upgrade --yes dkml-base-compiler conf-dkml-cross-toolchain ${{ matrix.ocaml-options }}; then
             printf "\n\n========= [START OF TROUBLESHOOTING] ===========\n\n" >&2
             find "$OPAMROOT"/log -mindepth 1 -maxdepth 1 -name "*.out" ! -name "log-*.out" ! -name "ocaml-variants-*.out" | while read -r dump_on_error_LOG; do
                 dump_on_error_BLOG=$(basename "$dump_on_error_LOG")
