@@ -2,7 +2,7 @@
 name: setup-dkml
 
 env:
-  DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "32c49c5b65ee7d3e46bbf470040356155841fa41" # "v0.4.0-prerel19_r5"
+  DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "2ad0ad744d7a85c5a1651d9b0b254590096cf50c" # "v0.4.0-prerel19_r5"
   DEFAULT_OCAML_VERSION: "4.12.1"
   PIN_BASE: "v0.14.3"
   PIN_BIGSTRINGAF: "0.8.0"
@@ -83,7 +83,7 @@ on:
         required: false
       dkml-compiler:
         type: string
-        description: "Git branch, tag or commit for ocaml, ocaml-config, dkml-base-compiler and dkml-option-32bit. However if ocaml-compiler is specified the 'dkml-base-compiler' version is taken from ocaml-compiler, and the 'ocaml' version is transitively taken from 'dkml-base-compiler' Opam dependencies."
+        description: "Git branch, tag or commit for dkml-base-compiler and dkml-option-32bit. However if ocaml-compiler is specified the 'dkml-base-compiler' version is taken from ocaml-compiler, and the 'ocaml' version is transitively taken from 'dkml-base-compiler' Opam dependencies."
         required: false
         default: "" # Change this to "@repository@" once published to Opam
       conf-dkml-cross-toolchain:
@@ -321,8 +321,6 @@ jobs:
       # repository; we cannot go over max 10 GitHub workflow inputs.
       DKML_OPTION_32BIT:                "${{ inputs.dkml-compiler }}"
       DKML_BASE_COMPILER:               "${{ inputs.dkml-compiler }}"
-      INPUT_OCAML:                      "${{ inputs.dkml-compiler }}"
-      OCAML_CONFIG:                     "${{ inputs.dkml-compiler }}"
 
       VS_ARCH: ${{ matrix.vsstudio-arch }}
       VS_HOST_ARCH: ${{ matrix.vsstudio-hostarch }}
@@ -847,42 +845,6 @@ jobs:
       - name: Pin conf-dkml-cross-toolchain to checkout instead of Opam repository
         if: env.CONF_DKML_CROSS_TOOLCHAIN != '@repository@'
         run: opamrun pin add --yes --no-action conf-dkml-cross-toolchain .ci/sd4/g/conf-dkml-cross-toolchain
-
-      # ocaml
-
-      - name: Checkout ocaml
-        if: env.INPUT_OCAML != '@repository@'
-        uses: actions/checkout@v3
-        with:
-          repository: diskuv/dkml-compiler
-          path: .ci/sd4/g/ocaml
-          ref: ${{ env.INPUT_OCAML }} # empty is no `ref`, which is default branch
-
-      - name: Pin ocaml to checkout instead of Opam repository (ocaml-compiler specified)
-        if: env.INPUT_OCAML == '' && inputs.ocaml-compiler != ''
-        run: opamrun pin add --yes --no-action ocaml.${{ inputs.ocaml-compiler }} .ci/sd4/g/ocaml
-
-      - name: Pin ocaml.4.12.1 to checkout instead of Opam repository (ocaml default; no ocaml-compiler specified)
-        if: env.INPUT_OCAML == '' && inputs.ocaml-compiler == ''
-        run: opamrun pin add --yes --no-action ocaml.4.12.1 .ci/sd4/g/ocaml
-
-      - name: Pin ocaml to checkout instead of Opam repository (ocaml specified; no ocaml-compiler specified)
-        if: (env.INPUT_OCAML != '' && env.INPUT_OCAML != '@repository@') && inputs.ocaml-compiler == ''
-        run: opamrun pin add --yes --no-action ocaml .ci/sd4/g/ocaml
-
-      # ocaml-config
-
-      - name: Checkout ocaml-config
-        if: env.OCAML_CONFIG != '@repository@'
-        uses: actions/checkout@v3
-        with:
-          repository: diskuv/dkml-compiler
-          path: .ci/sd4/g/ocaml-config
-          ref: ${{ env.OCAML_CONFIG }} # empty is no `ref`, which is default branch
-
-      - name: Pin ocaml-config to checkout instead of Opam repository
-        if: env.OCAML_CONFIG != '@repository@'
-        run: opamrun pin add --yes --no-action ocaml-config .ci/sd4/g/ocaml-config
 
       # dkml-option-32bit
 
