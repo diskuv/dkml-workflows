@@ -2,7 +2,6 @@
 name: setup-dkml
 
 env:
-  DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "7a04f7578edaf4c3fb52d4d877ef9596b858242d" # "v0.4.0-prerel19_r6"
   DEFAULT_OCAML_VERSION: "4.12.1"
   PIN_BASE: "v0.14.3"
   PIN_BIGSTRINGAF: "0.8.0"
@@ -144,6 +143,7 @@ jobs:
         #   macos is only the major platform without 32-bit.
         #   You don't need to include `ocaml-option-32bit` because it is auto
         #   chosen when the target ABI ends with x86.
+
         include:
           # ------------
           # windows-2019
@@ -296,14 +296,17 @@ jobs:
       OPAMROOT: ${{ matrix.opam-root }}
       EXE_EXT: ${{ matrix.exe_ext }}
 
+      # Keep DEFAULT_DISKUV_OPAM_REPOSITORY_TAG and OPAM_BINARY_CACHE_KEY in sync
       # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
-      # or if you otherwise need a fresh Opam root
-      OPAM_BINARY_CACHE_KEY: r3_${{
+      # or if you otherwise need a fresh Opam root.
+      DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "7a04f7578edaf4c3fb52d4d877ef9596b858242d" # "v0.4.0-prerel19_r6"
+      OPAM_BINARY_CACHE_KEY: 7a04f7578edaf4c3fb52d4d877ef9596b858242d r1_${{
         inputs.ocaml-compiler }}_${{
         inputs.fdopen-opamexe-bootstrap }}_${{
         matrix.dkml-host-abi }}_${{
         matrix.opam-abi }}_${{
-        matrix.bootstrap-opam-version }}
+        matrix.bootstrap-opam-version }}_${{
+        matrix.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}
 
       # When non-empty, instead of building the standard components from the
       # central Opam repository, use the github/gitlab development repositories
@@ -739,7 +742,6 @@ jobs:
             ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-opamrepo-${{
               env.OPAM_BINARY_CACHE_KEY }}-${{
               inputs.diskuv-opam-repository }}-${{
-              env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}-${{
               env.CACHE_KEY_GITHUB_INPUTS }}
 
       - name: Setup Opam repositories
@@ -767,7 +769,6 @@ jobs:
             ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-switch-${{
               env.OPAM_BINARY_CACHE_KEY }}-${{
               inputs.diskuv-opam-repository }}-${{
-              env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}-${{
               env.CACHE_KEY_GITHUB_INPUTS }}
 
       # Create, or recreate, the Opam switch. The Opam switch should not be
