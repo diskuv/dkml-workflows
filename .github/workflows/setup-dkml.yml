@@ -558,6 +558,27 @@ jobs:
           EOF
 
           # ---------------
+          # Create Opam troubleshooting script
+          # ---------------
+
+          cat > .ci/sd4/troubleshoot-opam.sh <<EOF
+          #!/bin/sh
+          set -euf
+          OPAMROOT=\$1
+          shift
+          printf "\n\n========= [START OF TROUBLESHOOTING] ===========\n\n" >&2
+          find "\$OPAMROOT"/log -mindepth 1 -maxdepth 1 -name "*.out" ! -name "log-*.out" ! -name "ocaml-variants-*.out" | while read -r dump_on_error_LOG; do
+              dump_on_error_BLOG=\$(basename "\$dump_on_error_LOG")
+              printf "\n\n========= [TROUBLESHOOTING] %s ===========\n\n" "\$dump_on_error_BLOG" >&2
+              awk -v BLOG="\$dump_on_error_BLOG" '{print "[" BLOG "]", \$0}' "\$dump_on_error_LOG" >&2
+          done
+          printf "\nScroll up to see the [TROUBLESHOOTING] logs that begin at the [START OF TROUBLESHOOTING] line\n" >&2
+          EOF
+
+          chmod +x .ci/sd4/troubleshoot-opam.sh
+          tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/troubleshoot-opam.sh
+
+          # ---------------
           # Create Opam support scripts (not needed for all platforms)
           #   The PATH to find opam must work internally in setup-dkml.yml (sd4/bs/bin) and
           #   by consumers of setup-dkml.yml (sd4/opamexe)
@@ -579,8 +600,13 @@ jobs:
           export OPAMROOT=/work/${{ matrix.opam-root }}
           if [ "${{ env.PATCH_OS_DISTRIBUTION_WIN32 }}" = true ]; then export OPAMVAR_os_distribution=win32; fi
           if [ "${{ env.PATCH_EXE_WIN32 }}" = true ]; then export OPAMVAR_exe=.exe; fi
-          set -x
-          exec "\$@"
+
+          echo "Running inside Docker container: \$*" >&2
+          set +e
+          "\$@"
+          exitcode=\$?
+          [ \$exitcode = 0 ] || "/work/.ci/sd4/troubleshoot-opam.sh" \$OPAMROOT
+          exit \$exitcode
           EOF
               chmod +x .ci/sd4/env-opam-real
               ;;
@@ -643,8 +669,13 @@ jobs:
           export OPAMROOT='${{ matrix.opam-root }}'
           if [ "${{ env.PATCH_OS_DISTRIBUTION_WIN32 }}" = true ]; then export OPAMVAR_os_distribution=win32; fi
           if [ "${{ env.PATCH_EXE_WIN32 }}" = true ]; then export OPAMVAR_exe=.exe; fi
-          set -x
-          exec "\$@"
+
+          echo "Running: \$*" >&2
+          set +e
+          "\$@"
+          exitcode=\$?
+          [ \$exitcode = 0 ] || "\$GITHUB_WORKSPACE/.ci/sd4/troubleshoot-opam.sh" \$OPAMROOT
+          exit \$exitcode
           EOF
             chmod +x .ci/sd4/env-opam
 
@@ -1084,16 +1115,7 @@ jobs:
           #!/bin/sh
           set -eufx
           opamrun pin list
-          if ! opamrun upgrade --yes dkml-base-compiler conf-dkml-cross-toolchain ${{ matrix.ocaml-options }}; then
-            printf "\n\n========= [START OF TROUBLESHOOTING] ===========\n\n" >&2
-            find "$OPAMROOT"/log -mindepth 1 -maxdepth 1 -name "*.out" ! -name "log-*.out" ! -name "ocaml-variants-*.out" | while read -r dump_on_error_LOG; do
-                dump_on_error_BLOG=$(basename "$dump_on_error_LOG")
-                printf "\n\n========= [TROUBLESHOOTING] %s ===========\n\n" "$dump_on_error_BLOG" >&2
-                cat "$dump_on_error_LOG" >&2
-            done
-            printf "Scroll up to see the [TROUBLESHOOTING] logs that begin at the [START OF TROUBLESHOOTING] line\n" >&2
-            exit 109
-          fi
+          opamrun upgrade --yes dkml-base-compiler conf-dkml-cross-toolchain ${{ matrix.ocaml-options }}
 
       # Bundle
 
