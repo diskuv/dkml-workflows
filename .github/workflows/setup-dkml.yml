@@ -775,7 +775,22 @@ jobs:
               inputs.diskuv-opam-repository }}-${{
               env.CACHE_KEY_GITHUB_INPUTS }}
 
+      - name: Cache Opam compiler switch by (host,target)
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ matrix.opam-root }}/dkml
+            ${{ matrix.opam-root }}/config
+          key:
+            ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-switch-${{
+              env.OPAM_BINARY_CACHE_KEY }}-${{
+              inputs.diskuv-opam-repository }}-${{
+              env.CACHE_KEY_GITHUB_INPUTS }}
+
       - name: Setup Opam repositories
+        # `opam repository` operations need the Opam switches present to perform
+        # updates, so this step comes after the Opam switch cache load but before the
+        # initial Opam switch creation.
         run: |
           #!/bin/sh
           set -eufx
@@ -789,18 +804,6 @@ jobs:
             opamrun repository add diskuv "git+https://github.com/diskuv/diskuv-opam-repository.git#${DISKUV_OPAM_REPOSITORY:-$DEFAULT_DISKUV_OPAM_REPOSITORY_TAG}" --yes --dont-select
             touch "$OPAMROOT/.ci.repo-init"
           fi
-
-      - name: Cache Opam compiler switch by (host,target)
-        uses: actions/cache@v2
-        with:
-          path: |
-            ${{ matrix.opam-root }}/dkml
-            ${{ matrix.opam-root }}/config
-          key:
-            ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-switch-${{
-              env.OPAM_BINARY_CACHE_KEY }}-${{
-              inputs.diskuv-opam-repository }}-${{
-              env.CACHE_KEY_GITHUB_INPUTS }}
 
       # Create, or recreate, the Opam switch. The Opam switch should not be
       # cached except for the compiler (confer docs for setup-ocaml GitHub
