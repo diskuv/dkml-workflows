@@ -527,10 +527,16 @@ jobs:
         with:
           path: |
             ${{ matrix.opam-root }}/config
-            ${{ matrix.opam-root }}/installer-${{ env.INSTALLERNAME }}
+            ${{ matrix.opam-root }}/dkml
+            ${{ matrix.opam-root }}/repo
+            ${{ matrix.opam-root }}/download-cache
             ${{ matrix.opam-root }}/.ci.root-init
+            ${{ matrix.opam-root }}/.ci.repo-init
           key:
-            ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-opamroot-${{ env.OPAM_BINARY_CACHE_KEY }}
+            ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-opamroot-${{
+              env.OPAM_BINARY_CACHE_KEY }}-${{
+              inputs.diskuv-opam-repository }}-${{
+              env.CACHE_KEY_GITHUB_INPUTS }}
 
       - name: Write and Distribute Opam scripts
         env:
@@ -762,31 +768,6 @@ jobs:
 
       # Build OCaml
 
-      - name: Cache Opam downloads and repositories by (host,target)
-        uses: actions/cache@v2
-        with:
-          path: |
-            ${{ matrix.opam-root }}/repo
-            ${{ matrix.opam-root }}/download-cache
-            ${{ matrix.opam-root }}/.ci.repo-init
-          key:
-            ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-opamrepo-${{
-              env.OPAM_BINARY_CACHE_KEY }}-${{
-              inputs.diskuv-opam-repository }}-${{
-              env.CACHE_KEY_GITHUB_INPUTS }}
-
-      - name: Cache Opam compiler switch by (host,target)
-        uses: actions/cache@v2
-        with:
-          path: |
-            ${{ matrix.opam-root }}/dkml
-            ${{ matrix.opam-root }}/config
-          key:
-            ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-switch-${{
-              env.OPAM_BINARY_CACHE_KEY }}-${{
-              inputs.diskuv-opam-repository }}-${{
-              env.CACHE_KEY_GITHUB_INPUTS }}
-
       - name: Setup Opam repositories
         # `opam repository` operations need the Opam switches present to perform
         # updates, so this step comes after the Opam switch cache load but before the
@@ -807,11 +788,7 @@ jobs:
 
       # Create, or recreate, the Opam switch. The Opam switch should not be
       # cached except for the compiler (confer docs for setup-ocaml GitHub
-      # Action). When we initially create the switch and then GitHub loads the
-      # cache of the Opam root,
-      # the switch will be present in OPAMROOT/config but OPAMROOT/<switch>
-      # will not be present ... recreating the switch to fix the inconsistent
-      # state.
+      # Action) which is the 'dkml' switch
       - name: Create Opam switch (TODO - missing fdopen repository) (TODO - missing 1000+ dkml pins)
         run: |
           #!/bin/sh
@@ -821,8 +798,8 @@ jobs:
           NOMINALLY_PRESENT=false
           if opamrun switch list --short | grep '^dkml$'; then NOMINALLY_PRESENT=true; fi
 
-          # Check if the switch is actually present (the switch cache is independent of the
-          # opam root cache). Inconsistencies will result in:
+          # Check if the switch is actually present in case of cache incoherence
+          # or corrupt Opam state that could result in:
           #   Error:  No config file found for switch dkml. Switch broken?
           if [ $NOMINALLY_PRESENT = true ] && [ ! -e $OPAMROOT/dkml/.opam-switch/switch-config ]; then
             # Remove the switch name from Opam root, and any partial switch state.
