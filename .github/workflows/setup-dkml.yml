@@ -154,7 +154,7 @@ jobs:
             abi-pattern: win32-windows_x86
             default_shell: msys2 {0}
             exe_ext: .exe
-            bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
+            bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
             opam-abi: windows_x86
             dkml-host-abi: windows_x86
             opam-root: D:/.opam
@@ -165,7 +165,7 @@ jobs:
             abi-pattern: win32-windows_x86_64
             default_shell: msys2 {0}
             exe_ext: .exe
-            bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
+            bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
             opam-abi: windows_x86_64
             dkml-host-abi: windows_x86_64
             opam-root: D:/.opam
@@ -177,7 +177,7 @@ jobs:
           #   abi-pattern: win32_1416-windows_64 # VS2017 compiler available to VS2019
           #   default_shell: msys2 {0}
           #   exe_ext: .exe
-          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
+          #   bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
           #   opam-abi: windows_x86_64
           #   dkml-host-abi: windows_x86_64
           #   opam-root: D:/.opam
@@ -200,7 +200,7 @@ jobs:
           #   abi-pattern: win32_2022-windows_x86_64
           #   default_shell: msys2 {0}
           #   exe_ext: .exe
-          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
+          #   bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
           #   opam-abi: windows_x86_64
           #   dkml-host-abi: windows_x86_64
           #   opam-root: D:/.opam
@@ -215,7 +215,7 @@ jobs:
           - os: macos-latest
             abi-pattern: macos-darwin_all
             default_shell: sh
-            bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
+            bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
             dkml-host-abi: darwin_x86_64
             opam-root: /Users/runner/.opam
 
@@ -257,7 +257,7 @@ jobs:
             abi-pattern: manylinux2014-linux_x86
             comment: (CentOS 7, etc.)
             default_shell: sh
-            bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
+            bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
             dkml-host-abi: linux_x86
             opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
             in_docker: "true"
@@ -269,7 +269,7 @@ jobs:
           #   abi-pattern: manylinux_2_24-linux_x86
           #   comment: (glibc>=2.24, Debian 9, etc.)
           #   default_shell: sh
-          #   bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
+          #   bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
           #   dkml-host-abi: linux_x86
           #   opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
           #   docker_runner: docker run --platform linux/386 --rm -v $GITHUB_WORKSPACE:/work --workdir=/work quay.io/pypa/manylinux_2_24_i686 linux32
@@ -279,7 +279,7 @@ jobs:
             abi-pattern: manylinux2014-linux_x86_64
             comment: (CentOS 7, etc.)
             default_shell: sh
-            bootstrap-opam-version: "2.1.0.msys2.12-prerel2"
+            bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
             dkml-host-abi: linux_x86_64
             opam-root: .ci/opamroot # local directory of $GITHUB_WORKSPACE so available to dockcross
             dockcross_image: dockcross/manylinux2014-x64
