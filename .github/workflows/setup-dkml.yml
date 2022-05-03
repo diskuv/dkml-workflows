@@ -70,7 +70,7 @@ on:
         type: boolean
         description: "Use opam.exe from fdopen on Windows. Typically only used when bootstrapping Opam for the first time. May be needed to solve '\"create_process\" failed on sleep: Bad file descriptor' which may need https://github.com/ocaml/opam/commit/417b97d8cfada35682a0f4107eb2e4f9e24fba91"
         required: false
-        default: true # Until we upgrade Opam. But this is just documentation ... it does not influence how the input variable is set
+        default: false
       cache-prefix:
         type: string
         description: The prefix of the cache keys.
