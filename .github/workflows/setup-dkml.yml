@@ -300,7 +300,7 @@ jobs:
       # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root.
       DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "c97b448b45bbfcaa22aa370e9a2efa50752edfc1" # "v0.4.0-prerel20_r2"
-      OPAM_BINARY_CACHE_KEY: 27548fbe5107c87a843f70eede3f0564056ecb92 r1_${{
+      OPAM_BINARY_CACHE_KEY: c97b448b45bbfcaa22aa370e9a2efa50752edfc1 r1_${{
         inputs.ocaml-compiler }}_${{
         inputs.fdopen-opamexe-bootstrap }}_${{
         matrix.dkml-host-abi }}_${{
@@ -777,6 +777,10 @@ jobs:
             opamrun repository add diskuv "git+https://github.com/diskuv/diskuv-opam-repository.git#${DISKUV_OPAM_REPOSITORY:-$DEFAULT_DISKUV_OPAM_REPOSITORY_TAG}" --yes --dont-select
             touch "$OPAMROOT/.ci.repo-init"
           fi
+
+          # Whether .ci.repo-init or not, always set the `diskuv` repository url since it can change
+          opamrun repository set-url diskuv "git+https://github.com/diskuv/diskuv-opam-repository.git#${DISKUV_OPAM_REPOSITORY:-$DEFAULT_DISKUV_OPAM_REPOSITORY_TAG}" --yes --dont-select
+          # Update both `default` and `diskuv` Opam repositories
           opamrun update default diskuv
 
       # Create, or recreate, the Opam switch. The Opam switch should not be
