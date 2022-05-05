@@ -370,14 +370,6 @@ jobs:
         # link.exe interferes with MSVC's link.exe
         run: rm -vf /usr/bin/link.exe
 
-      - name: Checkout dkml-runtime-distribution (Windows)
-        if: startsWith(matrix.dkml-host-abi, 'windows')
-        uses: actions/checkout@v3
-        with:
-          repository: diskuv/dkml-runtime-distribution
-          path: .ci/sd4/drd
-          ref: 1a3ec82dd851751a95e6a4797387a8163c51520e
-
       # Bootstrapping Opam
 
       - name: Cache Opam bootstrap by OS
@@ -930,6 +922,14 @@ jobs:
         with:
           path: .ci/sd4/vsenv
           key: ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-vsenv-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}-${{ matrix.vsstudio-dir }}
+
+      - name: Checkout dkml-runtime-distribution (Windows)
+        if: startsWith(matrix.dkml-host-abi, 'windows')
+        uses: actions/checkout@v3
+        with:
+          repository: diskuv/dkml-runtime-distribution
+          path: .ci/sd4/drd
+          ref: 1a3ec82dd851751a95e6a4797387a8163c51520e
 
       - name: Diagnose Visual Studio environment variables (Windows)
         # This wastes time and has lots of rows! Only run if "verbose" GitHub input key.
