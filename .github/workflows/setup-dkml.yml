@@ -785,6 +785,7 @@ jobs:
             opamrun repository add diskuv "git+https://github.com/diskuv/diskuv-opam-repository.git#${DISKUV_OPAM_REPOSITORY:-$DEFAULT_DISKUV_OPAM_REPOSITORY_TAG}" --yes --dont-select
             touch "$OPAMROOT/.ci.repo-init"
           fi
+          opamrun update default diskuv
 
       # Create, or recreate, the Opam switch. The Opam switch should not be
       # cached except for the compiler (confer docs for setup-ocaml GitHub
