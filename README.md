@@ -52,7 +52,6 @@ jobs:
     uses: 'diskuv/dkml-workflows/.github/workflows/setup-dkml.yml@v0'
     with:
       ocaml-compiler: 4.12.1
-      fdopen-opamexe-bootstrap: true # Use opam.exe from fdopen's deprecated Windows site. This is temporary until a transient bug is fixed.
 ```
 
 `setup-dkml` will create an Opam switch containing an OCaml compiler based on the dkml-base-compiler packages.
