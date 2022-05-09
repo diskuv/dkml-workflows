@@ -299,8 +299,8 @@ jobs:
       # Keep DEFAULT_DISKUV_OPAM_REPOSITORY_TAG and OPAM_BINARY_CACHE_KEY in sync
       # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
       # or if you otherwise need a fresh Opam root.
-      DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "1764dc6b87fe2c6ebf621fc0b5d2cc0bde6bd1e8" # "v0.4.0-prerel20_r4 +"
-      OPAM_BINARY_CACHE_KEY: 1764dc6b87fe2c6ebf621fc0b5d2cc0bde6bd1e8 r1_${{
+      DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: "3d48eebfd365177a251d379afb0878c6229797a1" # "v0.4.0-prerel21 +"
+      OPAM_BINARY_CACHE_KEY: 3d48eebfd365177a251d379afb0878c6229797a1 r1_${{
         inputs.ocaml-compiler }}_${{
         inputs.fdopen-opamexe-bootstrap }}_${{
         matrix.dkml-host-abi }}_${{
