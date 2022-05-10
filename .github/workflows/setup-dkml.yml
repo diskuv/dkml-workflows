@@ -57,7 +57,7 @@ on:
             if [ -x /usr/bin/cygpath ]; then opamrunabs=$(/usr/bin/cygpath -aw "$opamrunabs"); fi
             echo "$opamrunabs" >> $GITHUB_PATH
             #   Special case: GITHUB_PATH does not influence msys2.CMD of msys2/setup-msys2@v2, so place in real MSYS2 PATH
-            if [ "${MSYSTEM:-}" = MSYS ]; then
+            if [ -n "${MSYSTEM:-}" ]; then
               install -d /usr/local/bin
               install -v .ci/sd4/opamrun/opamrun /usr/local/bin/opamrun
               # Also get rid of link.exe; it interferes with MSVC's link.exe
@@ -335,10 +335,6 @@ jobs:
       #   wget: Needed for the Windows Opam download-command
       #   make: Needed for OCaml ./configure + make
       #   pkg-config: conf-pkg-config is used by many OCaml packages like digestif.
-      #       TODO: Using pkg-config from MSYSTEM=MSYS rather than
-      #       MSYSTEM=MINGW can cause C code to link to msys2 DLL. Perhaps we
-      #       should switch since MSYSTEM=MINGW prefers MINGW path but falls
-      #       back to MSYS path? And only needed for DKML, not DKSDK.
       #   rsync: On Windows the `cp` fallback can fail; loosely related to
       #        https://github.com/ocaml/opam/issues/4080
       #   diffutils: Needed for diff, which is needed for Opam
@@ -351,7 +347,7 @@ jobs:
         if: startsWith(matrix.dkml-host-abi, 'windows')
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MSYS
+          msystem: UCRT64
           update: true
           install: >-
             wget
@@ -722,7 +718,7 @@ jobs:
           if [ -x /usr/bin/cygpath ]; then opamrunabs=$(/usr/bin/cygpath -aw "$opamrunabs"); fi
           echo "$opamrunabs" >> $GITHUB_PATH
           # Special case: GITHUB_PATH does not influence msys2.CMD of msys2/setup-msys2@v2, so place in real MSYS2 PATH
-          if [ "${MSYSTEM:-}" = MSYS ]; then install -d /usr/local/bin; install -v .ci/sd4/opamrun/opamrun /usr/local/bin/opamrun; fi
+          if [ -n "${MSYSTEM:-}" ]; then install -d /usr/local/bin; install -v .ci/sd4/opamrun/opamrun /usr/local/bin/opamrun; fi
 
           # Bundle for consumers of setup-dkml.yml
           tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/opamrun

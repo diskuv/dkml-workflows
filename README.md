@@ -127,7 +127,7 @@ jobs:
         if: startsWith(matrix.dkml-host-abi, 'windows')
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MSYS
+          msystem: UCRT64
           update: true
           install: >-
             wget
