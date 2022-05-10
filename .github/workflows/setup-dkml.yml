@@ -153,6 +153,8 @@ jobs:
           - os: windows-2019 # 2019 has Visual Studio 2019
             abi-pattern: win32-windows_x86
             default_shell: msys2 {0}
+            msys2_system: CLANG32
+            msys2_packages: mingw-w64-clang-i686-pkg-config
             exe_ext: .exe
             bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
             opam-abi: windows_x86
@@ -164,6 +166,8 @@ jobs:
           - os: windows-2019 # 2019 has Visual Studio 2019
             abi-pattern: win32-windows_x86_64
             default_shell: msys2 {0}
+            msys2_system: UCRT64
+            msys2_packages: mingw-w64-ucrt-x86_64-pkg-config
             exe_ext: .exe
             bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
             opam-abi: windows_x86_64
@@ -176,6 +180,8 @@ jobs:
           # - os: windows-2019 # 2019 has Visual Studio 2019
           #   abi-pattern: win32_1416-windows_64 # VS2017 compiler available to VS2019
           #   default_shell: msys2 {0}
+          #   msys2_system: UCRT64
+          #   msys2_packages: mingw-w64-ucrt-x86_64-pkg-config
           #   exe_ext: .exe
           #   bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
           #   opam-abi: windows_x86_64
@@ -199,6 +205,8 @@ jobs:
           # - os: windows-2022
           #   abi-pattern: win32_2022-windows_x86_64
           #   default_shell: msys2 {0}
+          #   msys2_system: UCRT64
+          #   msys2_packages: mingw-w64-ucrt-x86_64-pkg-config
           #   exe_ext: .exe
           #   bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
           #   opam-abi: windows_x86_64
@@ -343,22 +351,24 @@ jobs:
       #   git: Needed for Opam
       #   tar: For Opam 2.0 from fdopen, we need MSYS2/Cygwin tar that can handle
       #      Unix paths like /tmp.
+      #   xz is not for OCaml; just to get opam64.tar.xz from fdopen
       - name: Install MSYS2 (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
         uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: ${{ matrix.msys2_system }}
           update: true
           install: >-
+            ${{ matrix.msys2_packages }}
             wget
             make
-            pkg-config
             rsync
             diffutils
             patch
             unzip
             git
             tar
+            xz
 
       - name: Uninstall MSYS2 conflicting executables (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
