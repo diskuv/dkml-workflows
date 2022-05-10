@@ -166,8 +166,8 @@ jobs:
           - os: windows-2019 # 2019 has Visual Studio 2019
             abi-pattern: win32-windows_x86_64
             default_shell: msys2 {0}
-            msys2_system: UCRT64
-            msys2_packages: mingw-w64-ucrt-x86_64-pkg-config
+            msys2_system: CLANG64
+            msys2_packages: mingw-w64-clang-x86_64-pkg-config
             exe_ext: .exe
             bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
             opam-abi: windows_x86_64
@@ -180,8 +180,8 @@ jobs:
           # - os: windows-2019 # 2019 has Visual Studio 2019
           #   abi-pattern: win32_1416-windows_64 # VS2017 compiler available to VS2019
           #   default_shell: msys2 {0}
-          #   msys2_system: UCRT64
-          #   msys2_packages: mingw-w64-ucrt-x86_64-pkg-config
+          #   msys2_system: CLANG64
+          #   msys2_packages: mingw-w64-clang-x86_64-pkg-config
           #   exe_ext: .exe
           #   bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
           #   opam-abi: windows_x86_64
@@ -205,8 +205,8 @@ jobs:
           # - os: windows-2022
           #   abi-pattern: win32_2022-windows_x86_64
           #   default_shell: msys2 {0}
-          #   msys2_system: UCRT64
-          #   msys2_packages: mingw-w64-ucrt-x86_64-pkg-config
+          #   msys2_system: CLANG64
+          #   msys2_packages: mingw-w64-clang-x86_64-pkg-config
           #   exe_ext: .exe
           #   bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
           #   opam-abi: windows_x86_64
