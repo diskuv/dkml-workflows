@@ -11,7 +11,7 @@ fi
 export bootstrap_opam_version="0.0.0"
 export opam_abi=windows_x86 #_64
 
-export DEFAULT_DISKUV_OPAM_REPOSITORY_TAG=0dae7c740d73bff1e9c792ac5f7e4cb66fafa6e1
+export DEFAULT_DISKUV_OPAM_REPOSITORY_TAG=a7978fd4badd881b6d7d497a1689458a4de81018
 export PIN_OCAMLFIND=1.9.1
 export PIN_OCAMLBUILD=0.14.0
 export INSTALLERNAME=ocaml
