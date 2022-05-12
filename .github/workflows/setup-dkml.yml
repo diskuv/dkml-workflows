@@ -153,8 +153,8 @@ jobs:
           - os: windows-2019 # 2019 has Visual Studio 2019
             abi-pattern: win32-windows_x86
             default_shell: msys2 {0}
-            msys2_system: CLANG32
-            msys2_packages: mingw-w64-clang-i686-pkg-config
+            msys2_system: MINGW32
+            msys2_packages: mingw-w64-i686-pkg-config
             exe_ext: .exe
             bootstrap-opam-version: "2.2.0-dkml20220503T201312Z"
             opam-abi: windows_x86
