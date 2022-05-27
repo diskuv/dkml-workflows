@@ -497,6 +497,33 @@ jobs:
           install -d .ci/sd4/dist
           tar cf .ci/sd4/dist/env-opam.tar -T /dev/null
 
+      # ------
+      # Docker
+
+      - name: Set up Docker Buildx (ManyLinux)
+        if: matrix.dockcross_image != ''
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          install: true
+          buildkitd-flags: --debug
+
+      - name: Inspect Docker Builder (ManyLinux)
+        if: matrix.dockcross_image != ''
+        run: |
+          echo "Name:      ${{ steps.buildx.outputs.name }}"
+          echo "Endpoint:  ${{ steps.buildx.outputs.endpoint }}"
+          echo "Status:    ${{ steps.buildx.outputs.status }}"
+          echo "Flags:     ${{ steps.buildx.outputs.flags }}"
+          echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
+
+      - name: Cache Docker layers (ManyLinux)
+        if: matrix.dockcross_image != ''
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx
+
       - name: Get dockcross and Opam prerequisites (ManyLinux)
         if: matrix.dockcross_image != ''
         run: |
@@ -515,6 +542,8 @@ jobs:
 
           # Bundle for consumers of setup-dkml.yml
           tar rvf .ci/sd4/dist/env-opam.tar .ci/sd4/bs/bin/rsync
+
+      # ------
 
       - name: Get Opam prerequisites (Linux Docker)
         if: matrix.docker_runner != ''
