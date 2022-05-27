@@ -2,6 +2,10 @@
 name: setup-dkml
 
 env:
+  # Maintained by https://github.com/diskuv/diskuv-communicator-android/blob/main/vendor/diskuv-communicator-kernel/vendor/diskuv-ocaml/contributors/release.sh
+  # in the main branch.
+  DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: c10386f75967dccedb62a9d331792b8d89bb078d
+
   DEFAULT_OCAML_VERSION: "4.12.1"
   PIN_BASE: "v0.14.3"
   PIN_BIGSTRINGAF: "0.8.0"
@@ -304,18 +308,6 @@ jobs:
       OPAMROOT: ${{ matrix.opam-root }}
       EXE_EXT: ${{ matrix.exe_ext }}
 
-      # Keep DEFAULT_DISKUV_OPAM_REPOSITORY_TAG and OPAM_BINARY_CACHE_KEY in sync
-      # Increase _rN_ if you get `make inconsistent assumptions over interface Stdlib__format` errors
-      # or if you otherwise need a fresh Opam root.
-      DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: c10386f75967dccedb62a9d331792b8d89bb078d
-      OPAM_BINARY_CACHE_KEY: c10386f75967dccedb62a9d331792b8d89bb078d r1_${{
-        inputs.ocaml-compiler }}_${{
-        inputs.fdopen-opamexe-bootstrap }}_${{
-        matrix.dkml-host-abi }}_${{
-        matrix.opam-abi }}_${{
-        matrix.bootstrap-opam-version }}_${{
-        matrix.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}
-
       # When non-empty, instead of building the standard components from the
       # central Opam repository, use the github/gitlab development repositories
       # directly.
@@ -326,9 +318,6 @@ jobs:
       # repository; we cannot go over max 10 GitHub workflow inputs.
       DKML_OPTION_32BIT:                "${{ inputs.dkml-compiler }}"
       DKML_BASE_COMPILER:               "${{ inputs.dkml-compiler }}"
-
-      VS_ARCH: ${{ matrix.vsstudio-arch }}
-      VS_HOST_ARCH: ${{ matrix.vsstudio-hostarch }}
 
       SHA512_DEVNULL: "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"
 
@@ -372,9 +361,35 @@ jobs:
 
       - name: Uninstall MSYS2 conflicting executables (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
-        shell: msys2 {0}
         # link.exe interferes with MSVC's link.exe
         run: rm -vf /usr/bin/link.exe
+
+      - name: Prepare cache keys
+        # An undocumented bug with GitHub Actions is that a space in the key
+        # will "succeed" but it never gets restored. So we will hash a
+        # user-friendly file instead.
+        run: |
+          cachebust=1
+          {
+            echo $cachebust
+            echo 'env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: ${{ env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}'
+            echo 'inputs.ocaml-compiler: ${{ inputs.ocaml-compiler }}'
+            echo 'inputs.fdopen-opamexe-bootstrap: ${{ inputs.fdopen-opamexe-bootstrap }}'
+            echo 'matrix.dkml-host-abi: ${{ matrix.dkml-host-abi }}'
+            echo 'matrix.opam-abi: ${{ matrix.opam-abi }}'
+            echo 'matrix.bootstrap-opam-version: ${{ matrix.bootstrap-opam-version }}'
+          } | tee cachekey.opam.binaries
+
+          {
+            echo $cachebust
+            echo 'matrix.vsstudio-arch: ${{ matrix.vsstudio-arch }}'
+            echo 'matrix.vsstudio-hostarch: ${{ matrix.vsstudio-hostarch }}'
+            echo 'matrix.vsstudio-dir: ${{ matrix.vsstudio-dir }}'
+            echo 'matrix.vsstudio-vcvarsver: ${{ matrix.vsstudio-vcvarsver }}'
+            echo 'matrix.vsstudio-winsdkver: ${{ matrix.vsstudio-winsdkver }}'
+            echo 'matrix.vsstudio-msvspreference: ${{ matrix.vsstudio-msvspreference }}'
+            echo 'matrix.vsstudio-cmakegenerator: ${{ matrix.vsstudio-cmakegenerator }}'
+          } | tee cachekey.vsstudio
 
       # Bootstrapping Opam
 
@@ -383,12 +398,11 @@ jobs:
         with:
           path: .ci/sd4/bs
           key:
-            ${{ inputs.cache-prefix }}_${{ runner.os }}-sd4-bs-${{ env.OPAM_BINARY_CACHE_KEY }}
+            ${{ inputs.cache-prefix }}_${{ runner.os }}-sd4-bs-${{ hashFiles('cachekey.opam.binaries') }}
 
       #   Bootstrap from historical release
       - name: Bootstrap Opam from fdopen (Windows)
         if: inputs.fdopen-opamexe-bootstrap && startsWith(matrix.dkml-host-abi, 'windows')
-        shell: msys2 {0}
         run: |
           #!/bin/sh
           set -eufx
@@ -531,8 +545,7 @@ jobs:
             ${{ matrix.opam-root }}/.ci.root-init
             ${{ matrix.opam-root }}/.ci.repo-init
           key:
-            ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-opamroot-${{
-              env.OPAM_BINARY_CACHE_KEY }}-${{
+            ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-opamroot-${{ hashFiles('cachekey.opam.binaries') }}-${{
               inputs.diskuv-opam-repository }}-${{
               env.CACHE_KEY_GITHUB_INPUTS }}
 
@@ -931,7 +944,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: .ci/sd4/vsenv
-          key: ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-vsenv-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}-${{ matrix.vsstudio-dir }}
+          key: ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-vsenv-${{ hashFiles('cachekey.vsstudio') }}
 
       - name: Checkout dkml-runtime-distribution (Windows)
         if: startsWith(matrix.dkml-host-abi, 'windows')
@@ -1029,7 +1042,7 @@ jobs:
           REM need a native compiler will fail without the MSVC compiler in the
           REM PATH. There isn't a `with-dkml.exe` alternative available at
           REM this stage of the GitHub workflow.
-          call "%VS_DIR%\Common7\Tools\VsDevCmd.bat" -no_logo -host_arch=%VS_HOST_ARCH% -arch=%VS_ARCH% -vcvars_ver=%VS_VCVARSVER% -winsdk=%VS_WINSDKVER%
+          call "%VS_DIR%\Common7\Tools\VsDevCmd.bat" -no_logo -host_arch=${{ matrix.vsstudio-hostarch }} -arch=${{ matrix.vsstudio-arch }} -vcvars_ver=%VS_VCVARSVER% -winsdk=%VS_WINSDKVER%
           if %ERRORLEVEL% neq 0 (
             echo.
             echo.The "%VS_DIR%\Common7\Tools\VsDevCmd.bat" command failed
