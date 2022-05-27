@@ -330,13 +330,6 @@ jobs:
       DKML_BASE_COMPILER:               "${{ inputs.dkml-compiler }}"
 
       SHA512_DEVNULL: "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"
-
-      # `>-` will flatten the multiple lines into a single line with no trailing EOL.
-      CACHE_KEY_GITHUB_INPUTS: >-
-        DISKUV_OPAM_REPOSITORY=${{ inputs.diskuv-opam-repository }}
-        ALL_COMPILER=${{ inputs.dkml-compiler }}
-        CONF_DKML_CROSS_TOOLCHAIN=${{ inputs.conf-dkml-cross-toolchain }}
-
     steps:
       # Install utilities
       #   wget: Needed for the Windows Opam download-command
@@ -383,7 +376,6 @@ jobs:
           {
             echo $cachebust
             echo 'env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: ${{ env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}'
-            echo 'inputs.ocaml-compiler: ${{ inputs.ocaml-compiler }}'
             echo 'inputs.fdopen-opamexe-bootstrap: ${{ inputs.fdopen-opamexe-bootstrap }}'
             echo 'matrix.dkml-host-abi: ${{ matrix.dkml-host-abi }}'
             echo 'matrix.opam-abi: ${{ matrix.opam-abi }}'
@@ -400,6 +392,14 @@ jobs:
             echo 'matrix.vsstudio-msvspreference: ${{ matrix.vsstudio-msvspreference }}'
             echo 'matrix.vsstudio-cmakegenerator: ${{ matrix.vsstudio-cmakegenerator }}'
           } | tee cachekey.vsstudio
+
+          {
+            echo $cachebust
+            echo 'inputs.ocaml-compiler: ${{ inputs.ocaml-compiler }}'
+            echo 'inputs.diskuv-opam-repository: ${{ inputs.diskuv-opam-repository }}'
+            echo 'inputs.dkml-compiler: ${{ inputs.dkml-compiler }}'
+            echo 'inputs.conf-dkml-cross-toolchain: ${{ inputs.conf-dkml-cross-toolchain }}'
+          } | tee cachekey.github.inputs
 
       # Bootstrapping Opam
 
@@ -584,9 +584,7 @@ jobs:
             ${{ matrix.opam-root }}/.ci.root-init
             ${{ matrix.opam-root }}/.ci.repo-init
           key:
-            ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-opamroot-${{ hashFiles('cachekey.opam.binaries') }}-${{
-              inputs.diskuv-opam-repository }}-${{
-              env.CACHE_KEY_GITHUB_INPUTS }}
+            ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-opamroot-${{ hashFiles('cachekey.opam.binaries') }}-${{ hashFiles('cachekey.github.inputs') }}
 
       - name: Write and Distribute Opam scripts
         env:
