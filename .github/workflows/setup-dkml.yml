@@ -139,6 +139,16 @@ jobs:
         #   Only needed if `os: windows-*`. The ARCH in
         #   `vsdevcmd.bat -arch=ARCH`. Example: x86.
         #   Confer: https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-170#use-the-developer-tools-in-an-existing-command-window
+        # vsstudio-<others>
+        #   Hardcodes details about Visual Studio rather than let DKML discover
+        #   a compatible Visual Studio installation.
+        #   Example:
+        #     vsstudio-dir: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise'
+        #     vsstudio-vcvarsver: '14.16'
+        #     vsstudio-winsdkver: '10.0.18362.0'
+        #     vsstudio-msvspreference: 'VS16.5'
+        #     vsstudio-cmakegenerator: 'Visual Studio 16 2019'
+
         # ocaml-options:
         #   Space separated list of `ocaml-option-*` packages.
         #
