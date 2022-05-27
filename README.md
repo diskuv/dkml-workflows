@@ -155,7 +155,7 @@ jobs:
           import ${{ matrix.abi-pattern }}
 
       - name: Cache Opam downloads by host
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ matrix.opam-root }}/download-cache
           key: ${{ matrix.dkml-host-abi }}

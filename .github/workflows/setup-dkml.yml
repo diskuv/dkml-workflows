@@ -379,7 +379,7 @@ jobs:
       # Bootstrapping Opam
 
       - name: Cache Opam bootstrap by OS
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: .ci/sd4/bs
           key:
@@ -521,7 +521,7 @@ jobs:
       # Setup Opam
 
       - name: Cache Opam root by (host,target)
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ${{ matrix.opam-root }}/config
@@ -819,7 +819,7 @@ jobs:
       # The action/checkout steps used for pinning will re-use existing Git objects
       # because of caching
       - name: Cache Git checkouts of Opam pins by OS
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: .ci/sd4/g
           key:
@@ -928,7 +928,7 @@ jobs:
       # Setup C compiler
 
       - name: Cache Visual Studio environment variables by (host,target)
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: .ci/sd4/vsenv
           key: ${{ inputs.cache-prefix }}_${{ matrix.abi-pattern }}-sd4-vsenv-${{ env.VS_ARCH }}-${{ env.VS_HOST_ARCH }}-${{ matrix.vsstudio-dir }}
