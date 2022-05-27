@@ -509,20 +509,12 @@ jobs:
 
       # ------
       # Docker
+      #   We use buildx which can cache into GitHub Actions Cache (type=gha)
 
       - name: Set up Docker Buildx (ManyLinux)
         if: matrix.dockcross_image != ''
         id: buildx
         uses: docker/setup-buildx-action@v2
-        with:
-          install: true
-
-      - name: Cache Docker layers (ManyLinux)
-        if: matrix.dockcross_image != ''
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ inputs.cache-prefix }}_${{ runner.os }}-sd4-buildx
 
       - name: Configure Docker (ManyLinux)
         if: matrix.dockcross_image != ''
@@ -537,7 +529,7 @@ jobs:
           context: .ci/sd4/dockcross-ctx
           builder: ${{ steps.buildx.outputs.name }}
           load: true
-          tags: diskuv-${{ matrix.dockcross_image }}
+          tags: dkml-${{ matrix.dockcross_image }}
           cache-from: type=gha,scope=${{ github.workflow }}
           cache-to: type=gha,mode=max,scope=${{ github.workflow }}
 
@@ -545,7 +537,7 @@ jobs:
         if: matrix.dockcross_image != ''
         run: |
           install -d .ci/sd4
-          docker run ${{ matrix.dockcross_run_extra_args }} --rm "diskuv-${{ matrix.dockcross_image }}" > .ci/sd4/dockcross
+          docker run ${{ matrix.dockcross_run_extra_args }} --rm "dkml-${{ matrix.dockcross_image }}" > .ci/sd4/dockcross
           chmod +x .ci/sd4/dockcross
 
           # Bundle for consumers of setup-dkml.yml
