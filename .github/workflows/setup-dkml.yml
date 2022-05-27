@@ -516,29 +516,36 @@ jobs:
         uses: docker/setup-buildx-action@v2
         with:
           install: true
-          buildkitd-flags: --debug
-
-      - name: Inspect Docker Builder (ManyLinux)
-        if: matrix.dockcross_image != ''
-        run: |
-          echo "Name:      ${{ steps.buildx.outputs.name }}"
-          echo "Endpoint:  ${{ steps.buildx.outputs.endpoint }}"
-          echo "Status:    ${{ steps.buildx.outputs.status }}"
-          echo "Flags:     ${{ steps.buildx.outputs.flags }}"
-          echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
 
       - name: Cache Docker layers (ManyLinux)
         if: matrix.dockcross_image != ''
         uses: actions/cache@v3
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx
+          key: ${{ inputs.cache-prefix }}_${{ runner.os }}-sd4-buildx
 
-      - name: Get dockcross and Opam prerequisites (ManyLinux)
+      - name: Configure Docker (ManyLinux)
+        if: matrix.dockcross_image != ''
+        run: |
+          install -d .ci/sd4/dockcross-ctx
+          printf 'FROM %s\nRUN echo done fetching image' '${{ matrix.dockcross_image }}' > .ci/sd4/dockcross-ctx/Dockerfile
+
+      - name: Fetch dockcross image (ManyLinux)
+        if: matrix.dockcross_image != ''
+        uses: docker/build-push-action@v3
+        with:
+          context: .ci/sd4/dockcross-ctx
+          builder: ${{ steps.buildx.outputs.name }}
+          load: true
+          tags: diskuv-${{ matrix.dockcross_image }}
+          cache-from: type=gha,scope=${{ github.workflow }}
+          cache-to: type=gha,mode=max,scope=${{ github.workflow }}
+
+      - name: Get dockcross binary and Opam prerequisites (ManyLinux)
         if: matrix.dockcross_image != ''
         run: |
           install -d .ci/sd4
-          docker run ${{ matrix.dockcross_run_extra_args }} --rm "${{ matrix.dockcross_image }}" > .ci/sd4/dockcross
+          docker run ${{ matrix.dockcross_run_extra_args }} --rm "diskuv-${{ matrix.dockcross_image }}" > .ci/sd4/dockcross
           chmod +x .ci/sd4/dockcross
 
           # Bundle for consumers of setup-dkml.yml
