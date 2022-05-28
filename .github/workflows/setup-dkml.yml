@@ -4,7 +4,7 @@ name: setup-dkml
 env:
   # Maintained by https://github.com/diskuv/diskuv-communicator-android/blob/main/vendor/diskuv-communicator-kernel/vendor/diskuv-ocaml/contributors/release.sh
   # in the main branch.
-  DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: c10386f75967dccedb62a9d331792b8d89bb078d
+  DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: 1d70d24f1fefb0bc1c483d0856db8da166bb405a
 
   DEFAULT_OCAML_VERSION: "4.12.1"
   PIN_BASE: "v0.14.3"
@@ -375,7 +375,7 @@ jobs:
           cachebust=1
           {
             echo $cachebust
-            echo 'env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: ${{ env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}'
+            echo 'env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: 1d70d24f1fefb0bc1c483d0856db8da166bb405a
             echo 'inputs.fdopen-opamexe-bootstrap: ${{ inputs.fdopen-opamexe-bootstrap }}'
             echo 'matrix.dkml-host-abi: ${{ matrix.dkml-host-abi }}'
             echo 'matrix.opam-abi: ${{ matrix.opam-abi }}'
