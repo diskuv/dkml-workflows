@@ -375,30 +375,30 @@ jobs:
           cachebust=1
           {
             echo $cachebust
-            echo 'env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: 1d70d24f1fefb0bc1c483d0856db8da166bb405a
-            echo 'inputs.fdopen-opamexe-bootstrap: ${{ inputs.fdopen-opamexe-bootstrap }}'
-            echo 'matrix.dkml-host-abi: ${{ matrix.dkml-host-abi }}'
-            echo 'matrix.opam-abi: ${{ matrix.opam-abi }}'
-            echo 'matrix.bootstrap-opam-version: ${{ matrix.bootstrap-opam-version }}'
+            echo 'env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG=${{ env.DEFAULT_DISKUV_OPAM_REPOSITORY_TAG }}'
+            echo 'inputs.fdopen-opamexe-bootstrap=${{ inputs.fdopen-opamexe-bootstrap }}'
+            echo 'matrix.dkml-host-abi=${{ matrix.dkml-host-abi }}'
+            echo 'matrix.opam-abi=${{ matrix.opam-abi }}'
+            echo 'matrix.bootstrap-opam-version=${{ matrix.bootstrap-opam-version }}'
           } | tee cachekey.opam.binaries
 
           {
             echo $cachebust
-            echo 'matrix.vsstudio-arch: ${{ matrix.vsstudio-arch }}'
-            echo 'matrix.vsstudio-hostarch: ${{ matrix.vsstudio-hostarch }}'
-            echo 'matrix.vsstudio-dir: ${{ matrix.vsstudio-dir }}'
-            echo 'matrix.vsstudio-vcvarsver: ${{ matrix.vsstudio-vcvarsver }}'
-            echo 'matrix.vsstudio-winsdkver: ${{ matrix.vsstudio-winsdkver }}'
-            echo 'matrix.vsstudio-msvspreference: ${{ matrix.vsstudio-msvspreference }}'
-            echo 'matrix.vsstudio-cmakegenerator: ${{ matrix.vsstudio-cmakegenerator }}'
+            echo 'matrix.vsstudio-arch=${{ matrix.vsstudio-arch }}'
+            echo 'matrix.vsstudio-hostarch=${{ matrix.vsstudio-hostarch }}'
+            echo 'matrix.vsstudio-dir=${{ matrix.vsstudio-dir }}'
+            echo 'matrix.vsstudio-vcvarsver=${{ matrix.vsstudio-vcvarsver }}'
+            echo 'matrix.vsstudio-winsdkver=${{ matrix.vsstudio-winsdkver }}'
+            echo 'matrix.vsstudio-msvspreference=${{ matrix.vsstudio-msvspreference }}'
+            echo 'matrix.vsstudio-cmakegenerator=${{ matrix.vsstudio-cmakegenerator }}'
           } | tee cachekey.vsstudio
 
           {
             echo $cachebust
-            echo 'inputs.ocaml-compiler: ${{ inputs.ocaml-compiler }}'
-            echo 'inputs.diskuv-opam-repository: ${{ inputs.diskuv-opam-repository }}'
-            echo 'inputs.dkml-compiler: ${{ inputs.dkml-compiler }}'
-            echo 'inputs.conf-dkml-cross-toolchain: ${{ inputs.conf-dkml-cross-toolchain }}'
+            echo 'inputs.ocaml-compiler=${{ inputs.ocaml-compiler }}'
+            echo 'inputs.diskuv-opam-repository=${{ inputs.diskuv-opam-repository }}'
+            echo 'inputs.dkml-compiler=${{ inputs.dkml-compiler }}'
+            echo 'inputs.conf-dkml-cross-toolchain=${{ inputs.conf-dkml-cross-toolchain }}'
           } | tee cachekey.github.inputs
 
       # Bootstrapping Opam
