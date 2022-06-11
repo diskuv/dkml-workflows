@@ -51,6 +51,11 @@ Add the `setup-dkml` child workflow to your own GitHub Actions `.yml` file:
 jobs:
   setup-dkml:
     uses: 'diskuv/dkml-workflows/.github/workflows/setup-dkml.yml@v0'
+    permissions:
+      #   By explicitly setting at least one permission, all other permissions
+      #   are set to none. setup-dkml.yml does not need access to your code!
+      #   Verify in 'Set up job > GITHUB_TOKEN permissions'.
+      actions: none
     with:
       ocaml-compiler: 4.12.1
 ```
