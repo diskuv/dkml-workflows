@@ -4,7 +4,7 @@ name: setup-dkml
 env:
   # Maintained by https://github.com/diskuv/diskuv-communicator-android/blob/main/vendor/diskuv-communicator-kernel/vendor/diskuv-ocaml/contributors/release.sh
   # in the main branch.
-  DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: 472f0502193cb33face189bc06ff67ed0d14dad2
+  DEFAULT_DISKUV_OPAM_REPOSITORY_TAG: 90a5a989e099c664d6e1fad81d7a319a3aca4c01
 
   DEFAULT_OCAML_VERSION: "4.12.1"
   PIN_BASE: "v0.14.3"
