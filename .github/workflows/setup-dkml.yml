@@ -22,6 +22,8 @@ env:
   PIN_PTIME: "0.8.6-msvcsupport"
   PIN_TIME_NOW: "v0.14.0"
 
+  DKML_VERSION: "0.4.0"
+
 on:
   workflow_call:
     outputs:
@@ -901,7 +903,7 @@ jobs:
         with:
           repository: diskuv/dkml-compiler
           path: .ci/sd4/g/dkml-base-compiler
-          ref: v${{ inputs.ocaml-compiler }}
+          ref: ${{ inputs.ocaml-compiler }}-v${{ env.DKML_VERSION }}
 
       - name: Pin dkml-base-compiler to checkout instead of Opam repository (ocaml-compiler or dkml-base-compiler specified)
         if: env.DKML_BASE_COMPILER != '@repository@' || inputs.ocaml-compiler != ''
