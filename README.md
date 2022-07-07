@@ -201,6 +201,8 @@ jobs:
     # ...
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed for softprops/action-gh-release@v1
     # Wait until `build` complete
     needs:
       - build
